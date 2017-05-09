@@ -1,0 +1,148 @@
+// Copyright 2016 Qubit Digital Ltd.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+syntax = "proto3";
+
+package logspray;
+
+import "google/api/annotations.proto";
+import "timestamp/timestamp.proto";
+
+// Message 
+message Message {
+  google.protobuf.Timestamp  time = 1;
+  map<string,string> labels = 2;
+  bool setheader = 3; // Legacy 
+  string text = 4;
+  enum ControlMessage {
+    NONE = 0;
+    OK = 1;
+    ERROR = 2;
+    SETHEADER = 3;
+    STREAMEND = 4;
+  }
+  ControlMessage control_message = 5;
+  string StreamID = 6;
+  uint64 Index = 7;
+}
+
+// LogSummary
+message LogSummary{
+ int64 count = 1;
+}
+
+// TailRequest
+message TailRequest {
+  int64 max = 1;
+  string query = 2;
+}
+
+// LabelsRequest
+message LabelsRequest {
+  google.protobuf.Timestamp from = 1; // currently ignored
+  google.protobuf.Timestamp to = 2; // currently ignored
+}
+
+// LabelsResponse
+message LabelsResponse {
+  repeated string names = 1;
+}
+
+// LabelValuesRequest
+message LabelValuesRequest {
+  google.protobuf.Timestamp from = 1; // currently ignored
+  google.protobuf.Timestamp to = 2; // currently ignored
+  string name = 3;
+  int64 count = 4;
+}
+
+// LabelValuesResponse
+message LabelValuesResponse {
+  repeated string values = 1;
+  uint64 total_hit_count = 2;
+}
+
+// SearchRequest
+message SearchRequest {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+  string query = 3;
+  uint64 count = 4;
+  uint64 offset = 5;
+  bool reverse = 6;
+}
+
+// SearchResponse
+message SearchResponse {
+  repeated Message messages = 1;
+  uint64 total_hit_count = 2;
+}
+
+// LogService
+service LogService {
+  // LogStream ingests the stream of messages
+  // The first message sent in a stream should set
+  // an initial set of default labels. You must provide a UUID
+  // for the stream, and each message should include an incrementing
+  // index into that stream.
+  //   The client assign the UUID, and Index, rather than the server,
+  // making it the singe source of truth for a given log item, and allowing
+  // potential deduplication of log itmes later on.
+  rpc LogStream (stream Message) returns (LogSummary){
+    option (google.api.http) = {
+      post: "/v1/log/stream"
+      body: "*"
+    };
+  };
+
+  // Log logs an individual message.
+  rpc Log (Message) returns (LogSummary){
+    option (google.api.http) = {
+      post: "/v1/log"
+      body: "*"
+    };
+  };
+
+  // Tail returns a stream of log data that matches the
+  // query in the TailRequest. When reading the stream 
+  // clients should pay attention to ControlMessage_SETHEADER
+  // events which include the base sets of labels for a stream.
+  // These labels should be added to log entries associated with
+  // that stream.
+  rpc Tail ( TailRequest) returns (stream Message){
+    option (google.api.http).get = "/v1/tail/stream";
+  } 
+
+  // Search takes a string query
+  rpc Search ( SearchRequest ) returns (SearchResponse){
+    option (google.api.http).get = "/v1/search/{from.seconds}/{to.seconds}/{query}";
+  }
+
+  // SearchStream takes a string query and returns results as a stream.
+  rpc SearchStream ( SearchRequest ) returns (stream Message){
+    option (google.api.http).get = "/v1/search/{from.seconds}/{to.seconds}/{query}/stream";
+  }
+
+  // Labels returns the set of labels known in the current index
+  // active index.
+  rpc Labels ( LabelsRequest) returns (LabelsResponse){
+    option (google.api.http).get = "/v1/labels/{from.seconds}/{to.seconds}";
+  } 
+
+  // LabelsValue returns the set of values for a label  known in the current
+  // index active index. (from/to are currently ignored)
+  rpc LabelValues ( LabelValuesRequest) returns (LabelValuesResponse){
+    option (google.api.http).get = "/v1/labels/{from.seconds}/{to.seconds}/{name}";
+  } 
+}
+
+

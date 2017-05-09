@@ -1,0 +1,10 @@
+enabled: true
+global:
+  dockerImage: logspray.io/logspray:latest
+  environment: dev
+  tlsSecret: logspray
+
+storageClass: standard
+grafana:
+  passSecret: ""
+

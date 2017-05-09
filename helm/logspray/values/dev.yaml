@@ -1,0 +1,4 @@
+reader:
+  docker:
+    root: /mnt/sda1/var/lib/docker
+

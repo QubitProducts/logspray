@@ -1,0 +1,15 @@
+global:
+  environment: dev
+  dockerImage: logspray.io/logspray:latest
+  tlsSecret: logspray
+
+server:
+  enabled: true
+  storageClass: standard
+  jwtMetaDataURL: ""
+
+reader:
+  enabled: true
+  server: _grpc._tcp.logspray-server.default.svc.cluster.local.
+  dnsServer: kube-dns.kube-system.svc.cluster.local:53
+  tlsInsecure: true

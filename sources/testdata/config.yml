@@ -1,0 +1,18 @@
+jobs:
+  docker:
+    type: docker
+  myproc:
+    type: process
+  files:
+    type: files
+    root: /var/log/upstart
+    recur: true
+    regex: .*\.log
+    relabel:
+      - action:
+        source_labels:
+        target_label:
+        regex:
+        replacement:
+    line_relabel:
+

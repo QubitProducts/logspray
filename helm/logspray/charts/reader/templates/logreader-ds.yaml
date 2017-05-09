@@ -1,0 +1,94 @@
+{{- if .Values.enabled }}
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: logspray-reader
+  namespace: default
+  labels:
+    app: logspray-reader
+    kubernetes.io/cluster-service: "true"
+    version: v0.6
+spec:
+  template:
+    metadata:
+      labels:
+        app: logspray-reader
+        kubernetes.io/cluster-service: "true"
+        version: v0.6
+      annotations:
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+      - name: logspray-reader
+        image: {{.Values.global.dockerImage}}
+        command:
+          - '/opt/logspray/bin/logspray-reader'
+        args:
+          - -logtostderr
+          - -server
+          - {{.Values.server}}
+{{- if .Values.serviceJSONSecret }}
+          - -service
+          - /etc/logspray-reader/service.json
+          - -oauth2.token_url
+          - {{.Values.oauth2TokenURL}}
+{{- end }}
+{{- if .Values.dnsServer }}
+          - -srv.ns
+          - {{.Values.dnsServer}}
+{{- end }}
+{{- if .Values.tlsInsecure }}
+          - -tls.insecure
+{{- end }}
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - name: admin
+          containerPort: 9998
+          protocol: TCP
+        volumeMounts:
+        - name: varrundockersock
+          mountPath: {{.Values.docker.socket}}
+          readOnly: false
+        - name: varlibdocker
+          mountPath: {{.Values.docker.root}}
+          readOnly: true
+{{- if .Values.serviceJSONSecret }}
+        - name: servicejson
+          mountPath: /etc/logspray-reader
+          readOnly: true
+{{- end }}
+{{- if .Values.global.tlsCASecret }}
+        - name: cacerts
+          mountPath: /etc/ssl/certs
+          readOnly: true
+{{- end }}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varrundockersock
+        hostPath:
+          path: {{.Values.docker.socket}}
+      - name: varlibdocker
+        hostPath:
+          path: {{.Values.docker.root}}
+{{- if .Values.serviceJSONSecret }}
+      - name: servicejson
+        secret:
+          secretName: {{.Values.serviceJSONSecret}}
+          items:
+            - key: gcloud-keyfile.json
+              path: service.json
+{{- end }}
+{{- if .Values.global.tlsCASecret }}
+      - name: cacerts
+        secret:
+          secretName: {{.Values.global.tlsCASecret}}
+          items:
+            - key: tls.crt
+              path: ca-certificates.crt
+{{- end }}
+{{end}}

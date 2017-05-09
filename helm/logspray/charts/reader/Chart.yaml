@@ -1,0 +1,10 @@
+name: reader
+version: 0.0.1
+description:
+keywords:
+  - logspray
+home: http://github.com/QubitProducts/logspray
+maintainers:
+  - name: Tristan Colgate-McFarlane
+    email: tristan@qubit.com
+engine: gotpl

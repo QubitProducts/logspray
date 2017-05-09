@@ -1,0 +1,101 @@
+{{ if .Values.enabled }}
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: logspray-server
+spec:
+  serviceName: "logspray-server"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: logspray-server
+        kubernetes.io/cluster-service: "true"
+        kubernetes.io/name: "Logspray"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9999"
+    spec:
+      containers:
+      - name: logspray-server
+        image: {{.Values.global.dockerImage}}
+        command:
+          - '/opt/logspray/bin/logspray-server'
+        args:
+          - -logtostderr
+          - -v
+          - "1"
+          - -tls.key
+          - /etc/logspray/ssl/key.pem
+          - -tls.cert
+          - /etc/logspray/ssl/cert.pem
+          - -tls.addr
+          - :10000
+          - -admin.addr
+          - :9999
+          - -index.dir
+          - /data
+{{- if .Values.jwtMetaDataURL }}
+          - "-jws.key-url"
+          - {{ .Values.jwtMetaDataURL }}
+{{- end }}
+        env:
+{{- if .Values.grafana.passSecret }}
+        - name: GRAFANA_BASICAUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.grafana.passSecret }}
+              key: user
+        - name: GRAFANA_BASICAUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.grafana.passSecret }}
+              key: pass
+{{- end }}
+        ports:
+        - name: grpc
+          protocol: TCP
+          containerPort: 10000
+        - name: admin
+          containerPort: 9999
+          protocol: TCP
+        volumeMounts:
+        - name: tlscert
+          readOnly: true
+          mountPath: /etc/logspray/ssl
+        - name: logspray-server-data
+          mountPath: /data
+{{- if .Values.global.tlsCASecret }}
+        - name: cacerts
+          mountPath: /etc/ssl/certs
+          readOnly: true
+{{- end }}
+      volumes:
+      - name: tlscert
+        secret:
+          secretName: {{.Values.global.tlsSecret}}
+          items:
+            - key: tls.crt
+              path: cert.pem
+            - key: tls.key
+              path: key.pem
+{{- if .Values.global.tlsCASecret }}
+      - name: cacerts
+        secret:
+          secretName: {{.Values.global.tlsCASecret}}
+          items:
+            - key: tls.crt
+              path: ca-certificates.crt
+{{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: logspray-server-data
+      annotations:
+        volume.alpha.kubernetes.io/storage-class: {{.Values.storageClass}}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 400Gi
+{{end}}

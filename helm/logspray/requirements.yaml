@@ -1,0 +1,9 @@
+# parentchart/requirements.yaml
+dependencies:
+- name: server
+  version: 0.1.0
+  condition: server.enabled, global.server.enabled
+
+- name: reader
+  version: 0.1.0
+  condition: reader.enabled, global.reader.enabled

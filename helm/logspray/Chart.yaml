@@ -1,0 +1,10 @@
+name: logspray
+version: 0.0.1
+description: Deploy logspray on a kube cluster
+keywords:
+  - logspray
+home: https://github.com/QubitProducts/logspray
+maintainers:
+  - name: Tristan Colgate-McFarlane
+    email: tristan@qubit.com
+engine: gotpl

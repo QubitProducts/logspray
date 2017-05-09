@@ -1,0 +1,15 @@
+enabled: true
+global:
+  dockerImage: logspray.io/logspray:latest
+  environment: dev
+
+server: _grpc._tcp.logspray-server.default.svc.cluster.local.
+dnsServer: kube-dns.kube-system.svc.cluster.local:53
+tlsCAPath: ""
+tlsInsecure: true
+serviceJSONSecret: ""
+oauth2TokenURL: ""
+docker:
+  socket: /var/run/docker.sock
+  root: /var/lib/docker
+
