@@ -17,7 +17,6 @@ package kinesis
 
 import (
 	"context"
-
 	"bytes"
 	"compress/gzip"
 
@@ -28,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MessageReader is a reder log source that reads docker logs.
+// MessageReader is a log source that reads from kinesis shard.
 type MessageReader struct {
 	shardIterator *string
 	shardId       string
@@ -36,7 +35,7 @@ type MessageReader struct {
 	stream        string
 }
 
-// ReadTarget creates a new docker log source
+// ReadTarget creates a new log source from a kinesis shard
 func (w *Watcher) ReadTarget(ctx context.Context, shardId string, fromStart bool) (sources.MessageReader, error) {
 	shardIterator, err := w.shardIterator(ctx, shardId, fromStart)
 	if err != nil {

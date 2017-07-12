@@ -25,11 +25,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Watcher watches for files being added and removed from a filesystem
+// Watcher watches for shards being added
 type Watcher struct {
 	ups     chan []*sources.Update
 	kinesis *kinesis.Kinesis
 	stream  string
+	region  *string
 }
 
 // Next should be called each time you wish to watch for an update.
@@ -60,13 +61,13 @@ func (w *Watcher) Next(ctx context.Context) ([]*sources.Update, error) {
 	}
 }
 
-func New(stream string) *Watcher {
-	return &Watcher{stream: stream}
+func New(stream string, region string) *Watcher {
+	return &Watcher{stream: stream, region: aws.String(region)}
 }
 
 func (w *Watcher) initialize() error {
 	awsSession, err := session.NewSession(&aws.Config{
-		Region: aws.String("eu-west-1"),
+		Region: w.region,
 	})
 	if err != nil {
 		return errors.Wrap(err, "could not create AWS session")
