@@ -2,5 +2,4 @@ logspray-server
 logspray-reader
 logspray-client
 dist/
-.idea
-logspray.iml
+vendor

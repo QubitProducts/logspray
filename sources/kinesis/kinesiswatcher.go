@@ -17,7 +17,6 @@ package kinesis
 
 import (
 	"context"
-	"flag"
 
 	"github.com/QubitProducts/logspray/sources"
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,6 +29,7 @@ import (
 type Watcher struct {
 	ups     chan []*sources.Update
 	kinesis *kinesis.Kinesis
+	stream  string
 }
 
 // Next should be called each time you wish to watch for an update.
@@ -60,20 +60,14 @@ func (w *Watcher) Next(ctx context.Context) ([]*sources.Update, error) {
 	}
 }
 
-var (
-	stream = "/aws/lambda/esp-production"
-)
-
-func New() *Watcher {
-	flag.StringVar(&stream, "kinesis.stream", stream, "The kinesis stream to read from")
-	flag.Set("logtostderr", "true")
-	flag.Parse()
-
-	return &Watcher{}
+func New(stream string) *Watcher {
+	return &Watcher{stream: stream}
 }
 
 func (w *Watcher) initialize() error {
-	awsSession, err := session.NewSession()
+	awsSession, err := session.NewSession(&aws.Config{
+		Region: aws.String("eu-west-1"),
+	})
 	if err != nil {
 		return errors.Wrap(err, "could not create AWS session")
 	}
@@ -85,7 +79,7 @@ func (w *Watcher) initialize() error {
 
 func (w *Watcher) getShardIds() ([]string, error) {
 	resp, err := w.kinesis.DescribeStream(&kinesis.DescribeStreamInput{
-		StreamName: aws.String(stream),
+		StreamName: aws.String(w.stream),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not list Kinesis streams")

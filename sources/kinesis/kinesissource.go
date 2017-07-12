@@ -18,6 +18,9 @@ package kinesis
 import (
 	"context"
 
+	"bytes"
+	"compress/gzip"
+
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/sources"
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,22 +33,23 @@ type MessageReader struct {
 	shardIterator *string
 	shardId       string
 	kinesis       *kinesis.Kinesis
+	stream        string
 }
 
 // ReadTarget creates a new docker log source
 func (w *Watcher) ReadTarget(ctx context.Context, shardId string, fromStart bool) (sources.MessageReader, error) {
-	shardIterator, err := shardIterator(ctx, w.kinesis, shardId, fromStart)
+	shardIterator, err := w.shardIterator(ctx, shardId, fromStart)
 	if err != nil {
 		return nil, err
 	}
-	return &MessageReader{shardIterator: shardIterator, shardId: shardId, kinesis: w.kinesis}, err
+	return &MessageReader{shardIterator: shardIterator, shardId: shardId, kinesis: w.kinesis, stream: w.stream}, err
 }
 
 // MessageRead implements the LogSourcer interface
 func (mr *MessageReader) MessageRead(ctx context.Context) (*logspray.Message, error) {
 	message := logspray.Message{}
 
-	resp, err := mr.kinesis.GetRecords(&kinesis.GetRecordsInput{
+	resp, err := mr.kinesis.GetRecordsWithContext(ctx, &kinesis.GetRecordsInput{
 		ShardIterator: mr.shardIterator,
 		Limit:         aws.Int64(1),
 	})
@@ -57,13 +61,29 @@ func (mr *MessageReader) MessageRead(ctx context.Context) (*logspray.Message, er
 	mr.shardIterator = resp.NextShardIterator
 
 	for _, r := range resp.Records {
-		message.Text = string(r.Data)
-	}
+		// decompressing data from kinesis
+		reader := bytes.NewReader(r.Data)
+		gzipReader, err := gzip.NewReader(reader)
+		if err != nil {
+			continue
+		}
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(gzipReader)
+		text := buf.String()
+		gzipReader.Close()
+		message.Text = text
 
+		// setting labels
+		message.Labels = map[string]string{
+			"job":             "kinesis",
+			"stream_name":     mr.stream,
+			"stream_shard_id": mr.shardId,
+		}
+	}
 	return &message, nil
 }
 
-func shardIterator(ctx context.Context, svc *kinesis.Kinesis, shardId string, fromStart bool) (*string, error) {
+func (w *Watcher) shardIterator(ctx context.Context, shardId string, fromStart bool) (*string, error) {
 	var shardIteratorType *string
 	if fromStart {
 		shardIteratorType = aws.String("TRIM_HORIZON")
@@ -71,10 +91,10 @@ func shardIterator(ctx context.Context, svc *kinesis.Kinesis, shardId string, fr
 		shardIteratorType = aws.String("LATEST")
 	}
 
-	resp, err := svc.GetShardIterator(&kinesis.GetShardIteratorInput{
+	resp, err := w.kinesis.GetShardIteratorWithContext(ctx, &kinesis.GetShardIteratorInput{
 		ShardId:           aws.String(shardId),
 		ShardIteratorType: shardIteratorType,
-		StreamName:        aws.String(stream),
+		StreamName:        aws.String(w.stream),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get shard iterator")
