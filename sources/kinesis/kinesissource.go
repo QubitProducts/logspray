@@ -16,9 +16,10 @@
 package kinesis
 
 import (
-	"context"
 	"bytes"
 	"compress/gzip"
+	"context"
+	"encoding/json"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/sources"
@@ -29,10 +30,20 @@ import (
 
 // MessageReader is a log source that reads from kinesis shard.
 type MessageReader struct {
-	shardIterator *string
-	shardId       string
-	kinesis       *kinesis.Kinesis
-	stream        string
+	shardIterator   *string
+	shardId         string
+	kinesis         *kinesis.Kinesis
+	stream          string
+	messagesChannel chan Message
+}
+
+type Message struct {
+	logsprayMsg *logspray.Message
+	error       error
+}
+
+type KinesisMessage struct {
+	LogEvents []interface{} `json:"logEvents"`
 }
 
 // ReadTarget creates a new log source from a kinesis shard
@@ -41,45 +52,25 @@ func (w *Watcher) ReadTarget(ctx context.Context, shardId string, fromStart bool
 	if err != nil {
 		return nil, err
 	}
-	return &MessageReader{shardIterator: shardIterator, shardId: shardId, kinesis: w.kinesis, stream: w.stream}, err
+	messagesChannel := make(chan Message, 100)
+
+	msgReader := &MessageReader{
+		shardIterator:   shardIterator,
+		shardId:         shardId,
+		kinesis:         w.kinesis,
+		stream:          w.stream,
+		messagesChannel: messagesChannel,
+	}
+
+	go msgReader.startReadingFromKinesis(ctx)
+
+	return msgReader, err
 }
 
 // MessageRead implements the LogSourcer interface
 func (mr *MessageReader) MessageRead(ctx context.Context) (*logspray.Message, error) {
-	message := logspray.Message{}
-
-	resp, err := mr.kinesis.GetRecordsWithContext(ctx, &kinesis.GetRecordsInput{
-		ShardIterator: mr.shardIterator,
-		Limit:         aws.Int64(1),
-	})
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not get records for shard %v: %v", mr.shardId)
-	}
-
-	mr.shardIterator = resp.NextShardIterator
-
-	for _, r := range resp.Records {
-		// decompressing data from kinesis
-		reader := bytes.NewReader(r.Data)
-		gzipReader, err := gzip.NewReader(reader)
-		if err != nil {
-			continue
-		}
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(gzipReader)
-		text := buf.String()
-		gzipReader.Close()
-		message.Text = text
-
-		// setting labels
-		message.Labels = map[string]string{
-			"job":             "kinesis",
-			"stream_name":     mr.stream,
-			"stream_shard_id": mr.shardId,
-		}
-	}
-	return &message, nil
+	message := <-mr.messagesChannel
+	return message.logsprayMsg, message.error
 }
 
 func (w *Watcher) shardIterator(ctx context.Context, shardId string, fromStart bool) (*string, error) {
@@ -100,4 +91,62 @@ func (w *Watcher) shardIterator(ctx context.Context, shardId string, fromStart b
 	}
 
 	return resp.ShardIterator, ctx.Err()
+}
+
+func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
+	for {
+		resp, kinesisErr := mr.kinesis.GetRecordsWithContext(ctx, &kinesis.GetRecordsInput{
+			ShardIterator: mr.shardIterator,
+			Limit:         aws.Int64(64),
+		})
+
+		if kinesisErr != nil {
+			mr.messagesChannel <- Message{nil, kinesisErr}
+			continue
+		}
+
+		mr.shardIterator = resp.NextShardIterator
+
+		for _, r := range resp.Records {
+			// decompressing data from kinesis
+			reader := bytes.NewReader(r.Data)
+			gzipReader, gzipErr := gzip.NewReader(reader)
+			if gzipErr != nil {
+				continue
+			}
+
+			kinesisMsg := KinesisMessage{}
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(gzipReader)
+			marshlingErr := json.Unmarshal(buf.Bytes(), &kinesisMsg)
+			gzipReader.Close()
+			if marshlingErr != nil {
+				continue
+			}
+
+			for _, log := range kinesisMsg.LogEvents {
+				logsprayMsg := &logspray.Message{}
+				logsprayMsg.Text = parseLog(log)
+				logsprayMsg.Labels = map[string]string{
+					"job":             "kinesis",
+					"stream_name":     mr.stream,
+					"stream_shard_id": mr.shardId,
+				}
+
+				msg := Message{logsprayMsg, nil}
+
+				select {
+				case <-ctx.Done():
+					close(mr.messagesChannel)
+					return
+				case mr.messagesChannel <- msg:
+				}
+			}
+		}
+	}
+}
+
+func parseLog(log interface{}) string {
+	logEvents := log.(map[string]interface{})
+	return logEvents["message"].(string)
 }
