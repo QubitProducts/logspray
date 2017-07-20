@@ -72,11 +72,9 @@ func (mr *MessageReader) MessageRead(ctx context.Context) (*logspray.Message, er
 }
 
 func (w *Watcher) shardIterator(ctx context.Context, shardId string, fromStart bool) (*string, error) {
-	var shardIteratorType *string
+	shardIteratorType := aws.String("LATEST")
 	if fromStart {
 		shardIteratorType = aws.String("TRIM_HORIZON")
-	} else {
-		shardIteratorType = aws.String("LATEST")
 	}
 
 	resp, err := w.kinesis.GetShardIteratorWithContext(ctx, &kinesis.GetShardIteratorInput{
