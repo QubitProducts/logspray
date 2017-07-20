@@ -583,3 +583,68 @@ func TestRulesConfig_Relabel(t *testing.T) {
 		})
 	}
 }
+
+func TestLogfmt(t *testing.T) {
+	tests := []struct {
+		*Rule
+		*logspray.Message
+		expect          bool
+		expectLabelName string
+		expectLabelVal  string
+		expectLabelOK   bool
+	}{
+		{
+			Rule: &Rule{
+				Action:      (*Rule).applyLogfmt,
+				SrcLabels:   []string{"text"},
+				Regex:       &JSONRegexp{regexp.MustCompile("(.+)")},
+				Separator:   ";",
+				Replacement: "$1",
+			},
+			Message: &logspray.Message{
+				Labels: map[string]string{
+					"text": `hello=world other="some things"`,
+				},
+			},
+			expect:          true,
+			expectLabelName: "other",
+			expectLabelVal:  "some things",
+			expectLabelOK:   true,
+		},
+		{
+			Rule: &Rule{
+				Action:      (*Rule).applyLogfmt,
+				SrcLabels:   []string{"text"},
+				Regex:       &JSONRegexp{regexp.MustCompile("(.+)")},
+				Separator:   ";",
+				Replacement: "$1",
+			},
+			Message: &logspray.Message{
+				Labels: map[string]string{
+					"text": `hello=world other="some things`,
+				},
+			},
+			expect: false,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("%s/%d", t.Name(), i), func(t *testing.T) {
+			if got := tt.Relabel(tt.Message); got != tt.expect {
+				t.Fatalf("match failed, expected = %v , got = %v", tt.expect, got)
+			}
+
+			lval, lok := tt.Message.Labels[tt.expectLabelName]
+			if lok != tt.expectLabelOK {
+				if tt.expectLabelOK {
+					t.Fatalf("expected label %s not present", tt.expectLabelName)
+				} else {
+					t.Fatalf("unexpected label %s present", tt.expectLabelName)
+				}
+			}
+			if lok && lval != tt.expectLabelVal {
+				t.Fatalf("expected label has wrong value, wanted = %q , got = %q", tt.expectLabelVal, lval)
+			}
+		})
+	}
+}
