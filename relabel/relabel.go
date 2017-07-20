@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/go-logfmt/logfmt"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/model"
 )
@@ -133,6 +134,7 @@ var actions = map[string]ruleFunc{
 	"labeldrop": (*Rule).applyLabelDrop,
 	"replace":   (*Rule).applyReplace,
 	"labelmap":  (*Rule).applyLabelMap,
+	"logfmt":    (*Rule).applyLogfmt,
 }
 
 func (r *Rule) applyDrop(m *logspray.Message) bool {
@@ -171,6 +173,27 @@ func (r *Rule) applyReplace(m *logspray.Message) bool {
 	}
 	target := model.LabelName(r.Regex.ExpandString([]byte{}, r.TargetLabel, key, matches))
 	m.Labels[string(target)] = string(r.Regex.ExpandString([]byte{}, r.Replacement, key, matches))
+	return true
+}
+
+func (r *Rule) applyLogfmt(m *logspray.Message) bool {
+	key := r.buildKey(m)
+	matches := r.Regex.FindStringSubmatchIndex(key)
+	if matches == nil {
+		return true
+	}
+
+	content := string(r.Regex.ExpandString([]byte{}, r.Replacement, key, matches))
+
+	d := logfmt.NewDecoder(strings.NewReader(content))
+	for d.ScanRecord() {
+		for d.ScanKeyval() {
+			m.Labels[string(d.Key())] = string(d.Value())
+		}
+	}
+	if d.Err() != nil {
+		return false
+	}
 	return true
 }
 
