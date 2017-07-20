@@ -31,7 +31,6 @@ import (
 // MessageReader is a log source that reads from kinesis shard.
 type MessageReader struct {
 	shardIterator   *string
-	shardId         string
 	kinesis         *kinesis.Kinesis
 	stream          string
 	messagesChannel chan Message
@@ -56,7 +55,6 @@ func (w *Watcher) ReadTarget(ctx context.Context, shardId string, fromStart bool
 
 	msgReader := &MessageReader{
 		shardIterator:   shardIterator,
-		shardId:         shardId,
 		kinesis:         w.kinesis,
 		stream:          w.stream,
 		messagesChannel: messagesChannel,
@@ -94,6 +92,7 @@ func (w *Watcher) shardIterator(ctx context.Context, shardId string, fromStart b
 }
 
 func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
+	defer close(mr.messagesChannel)
 	for {
 		resp, kinesisErr := mr.kinesis.GetRecordsWithContext(ctx, &kinesis.GetRecordsInput{
 			ShardIterator: mr.shardIterator,
@@ -126,18 +125,16 @@ func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
 
 			for _, log := range kinesisMsg.LogEvents {
 				logsprayMsg := &logspray.Message{}
-				logsprayMsg.Text = parseLog(log)
+				message, timestamp := parseLog(log)
+				logsprayMsg.Text = message
 				logsprayMsg.Labels = map[string]string{
-					"job":             "kinesis",
-					"stream_name":     mr.stream,
-					"stream_shard_id": mr.shardId,
+					"timestamp": timestamp,
 				}
 
 				msg := Message{logsprayMsg, nil}
 
 				select {
 				case <-ctx.Done():
-					close(mr.messagesChannel)
 					return
 				case mr.messagesChannel <- msg:
 				}
@@ -146,7 +143,7 @@ func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
 	}
 }
 
-func parseLog(log interface{}) string {
+func parseLog(log interface{}) (string, string) {
 	logEvents := log.(map[string]interface{})
-	return logEvents["message"].(string)
+	return logEvents["message"].(string), logEvents["timestamp"].(string)
 }

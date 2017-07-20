@@ -47,7 +47,12 @@ func (w *Watcher) Next(ctx context.Context) ([]*sources.Update, error) {
 
 		logSources := []*sources.Update{}
 		for _, shard := range shards {
-			logSources = append(logSources, &sources.Update{Action: sources.Add, Target: shard})
+			labels := map[string]string{
+				"job":             "kinesis",
+				"stream_name":     w.stream,
+				"stream_shard_id": shard,
+			}
+			logSources = append(logSources, &sources.Update{Action: sources.Add, Target: shard, Labels: labels})
 		}
 
 		w.ups <- logSources
