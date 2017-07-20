@@ -22,8 +22,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/golang/protobuf/ptypes"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -644,6 +646,54 @@ func TestLogfmt(t *testing.T) {
 			}
 			if lok && lval != tt.expectLabelVal {
 				t.Fatalf("expected label has wrong value, wanted = %q , got = %q", tt.expectLabelVal, lval)
+			}
+		})
+	}
+}
+
+func TestStrptime(t *testing.T) {
+	msgtime, _ := ptypes.TimestampProto(time.Unix(1, 0))
+	t1 := time.Now()
+
+	tests := []struct {
+		*Rule
+		*logspray.Message
+		expect     bool
+		expectTime time.Time
+	}{
+		{
+			Rule: &Rule{
+				Action:      (*Rule).applyStrptime,
+				SrcLabels:   []string{"maybetime"},
+				Regex:       &JSONRegexp{regexp.MustCompile("(.+)")},
+				Separator:   ";",
+				TargetLabel: time.RFC3339Nano,
+				Replacement: "$1",
+			},
+			Message: &logspray.Message{
+				Labels: map[string]string{
+					"maybetime": t1.Format(time.RFC3339Nano),
+				},
+				Time: msgtime,
+			},
+			expect:     true,
+			expectTime: t1,
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("%s/%d", t.Name(), i), func(t *testing.T) {
+			if got := tt.Relabel(tt.Message); got != tt.expect {
+				t.Fatalf("match failed, expected = %v , got = %v", tt.expect, got)
+			}
+
+			mtime, err := ptypes.Timestamp(tt.Message.Time)
+			if err != nil {
+				t.Fatalf("failed reading message timestampt, err = %v", err)
+			}
+
+			if mtime.UnixNano() != tt.expectTime.UnixNano() {
+				t.Fatalf("message has wrong timestampt, wanted = %v , got = %v", tt.expectTime, mtime)
 			}
 		})
 	}
