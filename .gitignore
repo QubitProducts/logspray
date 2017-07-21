@@ -2,3 +2,4 @@ logspray-server
 logspray-reader
 logspray-client
 dist/
+vendor
