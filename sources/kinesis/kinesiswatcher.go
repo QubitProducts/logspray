@@ -27,10 +27,11 @@ import (
 
 // Watcher watches for shards being added
 type Watcher struct {
-	ups     chan []*sources.Update
-	kinesis *kinesis.Kinesis
-	stream  string
-	region  *string
+	ups                 chan []*sources.Update
+	kinesis             *kinesis.Kinesis
+	stream              string
+	region              *string
+	messagesChannelSize int
 }
 
 // Next should be called each time you wish to watch for an update.
@@ -66,8 +67,8 @@ func (w *Watcher) Next(ctx context.Context) ([]*sources.Update, error) {
 	}
 }
 
-func New(stream string, region string) *Watcher {
-	return &Watcher{stream: stream, region: aws.String(region)}
+func New(stream string, region string, messagesChannelSize int) *Watcher {
+	return &Watcher{stream: stream, region: aws.String(region), messagesChannelSize: messagesChannelSize}
 }
 
 func (w *Watcher) initialize() error {

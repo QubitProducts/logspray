@@ -25,6 +25,7 @@ import (
 	"github.com/QubitProducts/logspray/sources"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/golang/glog"
 	"github.com/pkg/errors"
 )
 
@@ -51,7 +52,7 @@ func (w *Watcher) ReadTarget(ctx context.Context, shardId string, fromStart bool
 	if err != nil {
 		return nil, err
 	}
-	messagesChannel := make(chan Message, 100)
+	messagesChannel := make(chan Message, w.messagesChannelSize)
 
 	msgReader := &MessageReader{
 		shardIterator:   shardIterator,
@@ -109,6 +110,7 @@ func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
 			reader := bytes.NewReader(r.Data)
 			gzipReader, gzipErr := gzip.NewReader(reader)
 			if gzipErr != nil {
+				glog.Error(gzipErr)
 				continue
 			}
 
@@ -118,15 +120,16 @@ func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
 			marshlingErr := json.Unmarshal(buf.Bytes(), &kinesisMsg)
 			gzipReader.Close()
 			if marshlingErr != nil {
+				glog.Error(marshlingErr)
 				continue
 			}
 
 			for _, log := range kinesisMsg.LogEvents {
-				logsprayMsg := &logspray.Message{}
-				message, timestamp := parseLog(log)
-				logsprayMsg.Text = message
-				logsprayMsg.Labels = map[string]string{
-					"timestamp": timestamp,
+				logsprayMsg, parseErr := parseLog(log)
+
+				if parseErr != nil {
+					glog.Error(parseErr)
+					continue
 				}
 
 				msg := Message{logsprayMsg, nil}
@@ -141,7 +144,27 @@ func (mr *MessageReader) startReadingFromKinesis(ctx context.Context) {
 	}
 }
 
-func parseLog(log interface{}) (string, string) {
-	logEvents := log.(map[string]interface{})
-	return logEvents["message"].(string), logEvents["timestamp"].(string)
+func parseLog(log interface{}) (*logspray.Message, error) {
+	logEvents, ok := log.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("Failed to parse kinesis message")
+	}
+
+	message, ok := logEvents["message"].(string)
+	if !ok {
+		return nil, errors.New("Failed to parse message field in kinesis message")
+	}
+
+	timestamp, ok := logEvents["timestamp"].(string)
+	if !ok {
+		return nil, errors.New("Failed to parse timestamp field in kinesis message")
+	}
+
+	logsprayMsg := &logspray.Message{}
+	logsprayMsg.Text = message
+	logsprayMsg.Labels = map[string]string{
+		"timestamp": timestamp,
+	}
+
+	return logsprayMsg, nil
 }
