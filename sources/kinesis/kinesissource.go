@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/pkg/errors"
 )
 
@@ -155,15 +156,14 @@ func parseLog(log interface{}) (*logspray.Message, error) {
 		return nil, errors.New("Failed to parse message field in kinesis message")
 	}
 
-	timestamp, ok := logEvents["timestamp"].(string)
-	if !ok {
-		return nil, errors.New("Failed to parse timestamp field in kinesis message")
-	}
+	milliSeconds := int64(logEvents["timestamp"].(float64))
 
 	logsprayMsg := &logspray.Message{}
 	logsprayMsg.Text = message
-	logsprayMsg.Labels = map[string]string{
-		"timestamp": timestamp,
+
+	logsprayMsg.Time = &timestamp.Timestamp{
+		Nanos:   int32((milliSeconds % 1000) * 1000000),
+		Seconds: milliSeconds / 1000,
 	}
 
 	return logsprayMsg, nil
