@@ -22,10 +22,12 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/go-logfmt/logfmt"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/model"
 )
 
 // Config is a collection of rules for updating the labels on a message.
@@ -133,6 +135,8 @@ var actions = map[string]ruleFunc{
 	"labeldrop": (*Rule).applyLabelDrop,
 	"replace":   (*Rule).applyReplace,
 	"labelmap":  (*Rule).applyLabelMap,
+	"logfmt":    (*Rule).applyLogfmt,
+	"strptime":  (*Rule).applyStrptime,
 }
 
 func (r *Rule) applyDrop(m *logspray.Message) bool {
@@ -169,8 +173,29 @@ func (r *Rule) applyReplace(m *logspray.Message) bool {
 	if matches == nil {
 		return true
 	}
-	target := model.LabelName(r.Regex.ExpandString([]byte{}, r.TargetLabel, key, matches))
+	target := r.Regex.ExpandString([]byte{}, r.TargetLabel, key, matches)
 	m.Labels[string(target)] = string(r.Regex.ExpandString([]byte{}, r.Replacement, key, matches))
+	return true
+}
+
+func (r *Rule) applyLogfmt(m *logspray.Message) bool {
+	key := r.buildKey(m)
+	matches := r.Regex.FindStringSubmatchIndex(key)
+	if matches == nil {
+		return true
+	}
+
+	content := string(r.Regex.ExpandString([]byte{}, r.Replacement, key, matches))
+
+	d := logfmt.NewDecoder(strings.NewReader(content))
+	for d.ScanRecord() {
+		for d.ScanKeyval() {
+			m.Labels[string(d.Key())] = string(d.Value())
+		}
+	}
+	if d.Err() != nil {
+		return false
+	}
 	return true
 }
 
@@ -267,4 +292,26 @@ func (r *JSONRegexp) UnmarshalJSON(bs []byte) error {
 	}
 	*r = JSONRegexp{re}
 	return nil
+}
+
+func (r *Rule) applyStrptime(m *logspray.Message) bool {
+	key := r.buildKey(m)
+	matches := r.Regex.FindStringSubmatchIndex(key)
+	if matches == nil {
+		return true
+	}
+	content := string(r.Regex.ExpandString([]byte{}, r.Replacement, key, matches))
+
+	t, err := time.Parse(r.TargetLabel, content)
+	if err != nil {
+		return false
+	}
+	mt, err := ptypes.TimestampProto(t)
+	if err != nil {
+		return false
+	}
+
+	m.Time = mt
+
+	return true
 }
