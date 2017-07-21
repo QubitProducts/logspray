@@ -129,14 +129,15 @@ func (r *Rule) Relabel(m *logspray.Message) bool {
 }
 
 var actions = map[string]ruleFunc{
-	"keep":      (*Rule).applyKeep,
-	"drop":      (*Rule).applyDrop,
-	"labelkeep": (*Rule).applyLabelKeep,
-	"labeldrop": (*Rule).applyLabelDrop,
-	"replace":   (*Rule).applyReplace,
-	"labelmap":  (*Rule).applyLabelMap,
-	"logfmt":    (*Rule).applyLogfmt,
-	"strptime":  (*Rule).applyStrptime,
+	"keep":              (*Rule).applyKeep,
+	"drop":              (*Rule).applyDrop,
+	"labelkeep":         (*Rule).applyLabelKeep,
+	"labeldrop":         (*Rule).applyLabelDrop,
+	"replace":           (*Rule).applyReplace,
+	"labelmap":          (*Rule).applyLabelMap,
+	"logfmt":            (*Rule).applyLogfmt,
+	"structuredlogging": (*Rule).applyStructuredLogging,
+	"strptime":          (*Rule).applyStrptime,
 }
 
 func (r *Rule) applyDrop(m *logspray.Message) bool {
@@ -194,6 +195,38 @@ func (r *Rule) applyLogfmt(m *logspray.Message) bool {
 		}
 	}
 	if d.Err() != nil {
+		return false
+	}
+	return true
+}
+
+func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
+	key := r.buildKey(m)
+	matches := r.Regex.FindStringSubmatchIndex(key)
+	if matches == nil {
+		return true
+	}
+
+	content := r.Regex.ExpandString([]byte{}, r.Replacement, key, matches)
+
+	var jsonObj map[string]interface{}
+
+	err := json.Unmarshal(content, &jsonObj)
+
+	for k, v := range jsonObj {
+		switch v := v.(type) {
+		case string:
+			m.Labels[k] = v
+		default:
+			stringified, err := json.Marshal(v)
+			if err != nil {
+				return false
+			}
+			m.Labels[k] = string(stringified)
+		}
+	}
+
+	if err != nil {
 		return false
 	}
 	return true
