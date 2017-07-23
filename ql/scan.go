@@ -39,12 +39,13 @@ const (
 	EOF      Type = iota // zero value so closed channel delivers EOF
 	TokError             // error occurred; value is text of error
 	Newline
-	Atom
-	QuotedString
-	SpecialAtom
+	String   // A quoted string
+	Atom     // a bare word
+	Operator // Symbol made up of special chars
 )
 
-const special = "!=~"
+const special = "|&!=~"
+const punctuation = "-_."
 
 func (i Token) String() string {
 	switch {
@@ -216,7 +217,7 @@ func lexAny(l *Scanner) stateFn {
 		return lexAny
 	case isSpace(r):
 		return lexSpace
-	case r == '"', r == '\'':
+	case r == '"', r == '\'', r == '`':
 		return lexQuote
 	case isSpecial(r):
 		return lexSpecialAtom
@@ -254,7 +255,7 @@ Loop:
 			break Loop
 		}
 	}
-	l.emit(QuotedString)
+	l.emit(String)
 	return lexAny
 }
 
@@ -270,6 +271,7 @@ Loop:
 			break Loop
 		}
 	}
+
 	l.emit(Atom)
 	return lexAny
 }
@@ -286,13 +288,15 @@ Loop:
 			break Loop
 		}
 	}
-	l.emit(SpecialAtom)
+	l.emit(Operator)
 	return lexAny
 }
 
-// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
+// isAlphaNumeric reports whether r is an alphabetic, digit, or punctuation.
 func isAlphaNumeric(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return strings.ContainsRune(punctuation, r) ||
+		unicode.IsLetter(r) ||
+		unicode.IsDigit(r)
 }
 
 // isSpecial

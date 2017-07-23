@@ -15,32 +15,6 @@ package ql
 
 import "fmt"
 
-type OpType int
-
-const (
-	XFX OpType = iota
-	FX
-	XFY
-	FY
-	YFX
-	XF
-	YF
-)
-
-type Op map[OpType]int
-
-type OpSet map[string]Op
-
-// defaultOps is a set of ops totally stolen from SWI, I have
-// literally no idea what 90% of these do.
-var defaultOps = OpSet{
-	"=":  {XFX: 1200, FX: 1200},
-	"~":  {XFX: 1200, FX: 1200},
-	"!=": {XFX: 1200, FX: 1200},
-	"!~": {XFX: 1200, FX: 1200},
-	"&":  {XFX: 1200, FX: 1200},
-}
-
 // Parser stores the state for the ivy parser.
 type Parser struct {
 	scanner  *Scanner
@@ -51,8 +25,6 @@ type Parser struct {
 
 	peekTok Token
 	curTok  Token // most recent token from scanner
-
-	operators OpSet
 }
 
 // Error provides details of a syntax error
@@ -70,8 +42,6 @@ func (err Error) Error() string {
 func newParser(scanner *Scanner) *Parser {
 	return &Parser{
 		scanner: scanner,
-
-		operators: defaultOps, // TODO: Need a deep copy here
 	}
 }
 
@@ -110,46 +80,4 @@ func (p *Parser) peek() Token {
 
 func (p *Parser) errorf(args ...interface{}) Error {
 	return Error{}
-}
-
-func (os OpSet) lookup(s string) (Op, bool) {
-	ops, ok := os[s]
-	if !ok {
-		return nil, false
-	}
-	return ops, true
-}
-
-// Infix returns left, op, and right priorities
-func (os OpSet) Infix(s string) (int, int, int, bool) {
-	o, ok := os.lookup(s)
-	if !ok {
-		return 0, 0, 0, false
-	}
-
-	if opp, ok := o[YFX]; ok {
-		return opp, opp, opp - 1, true
-	}
-	if opp, ok := o[XFY]; ok {
-		return opp - 1, opp, opp, true
-	}
-	if opp, ok := o[XFX]; ok {
-		return opp - 1, opp, opp - 1, true
-	}
-	return 0, 0, 0, false
-}
-
-func (os OpSet) Prefix(s string) (int, int, bool) {
-	o, ok := os.lookup(s)
-	if !ok {
-		return 0, 0, false
-	}
-
-	if opp, ok := o[FX]; ok {
-		return opp, opp - 1, true
-	}
-	if opp, ok := o[FY]; ok {
-		return opp, opp, true
-	}
-	return 0, 0, false
 }

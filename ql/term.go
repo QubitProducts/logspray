@@ -26,14 +26,10 @@ type queryTerm struct {
 	value    string
 }
 
-type query map[string]map[string][]string
+type query []queryTerm
 
-// readTerm reads the next available term, assuming the
-// priority of the current term is prio
+// readTerm reads the next available search term
 //
-// STR: QA | A
-// OP: "=" | "!=" | "=~" | "!~"
-// QT: STR OP STR
 // QTS:  QTS | QT
 func (p *Parser) readQueryTerms() (query, error) {
 	var qts []queryTerm
@@ -48,15 +44,16 @@ func (p *Parser) readQueryTerms() (query, error) {
 		qts = append(qts, qt)
 	}
 
-	return query{}, nil
+	return query(qts), nil
 }
 
+// QT: LABEL OP STR
 func (p *Parser) readQueryTerm() (queryTerm, error) {
 	if p.peek().Type == EOF {
 		return queryTerm{}, io.EOF
 	}
 
-	lval, err := p.lvalue()
+	lval, err := p.label()
 	if err != nil {
 		return queryTerm{}, err
 	}
@@ -66,7 +63,7 @@ func (p *Parser) readQueryTerm() (queryTerm, error) {
 		return queryTerm{}, err
 	}
 
-	rval, err := p.rexpr()
+	rval, err := p.string()
 	if err != nil {
 		return queryTerm{}, err
 	}
@@ -78,44 +75,71 @@ func (p *Parser) readQueryTerm() (queryTerm, error) {
 	}, nil
 }
 
+type op struct{}
+
+type opSet map[string]*op
+
+// defaultOps is a set of ops totally stolen from SWI, I have
+// literally no idea what 90% of these do.
+var defaultOps = opSet{
+	"=":  {},
+	"~":  {},
+	"!=": {},
+	"!~": {},
+}
+
+func (os opSet) lookup(s string) (*op, bool) {
+	ops, ok := os[s]
+	if !ok {
+		return nil, false
+	}
+	return ops, true
+}
+
+// OP: "=" | "!=" | "~" | "!~"
 func (p *Parser) operator() (string, error) {
 	tok := p.next()
 	switch tok.Type {
-	case SpecialAtom:
+	case Operator:
 	case EOF:
 		return "", fmt.Errorf("expected label name, got EOF")
 	default:
 		return "", fmt.Errorf("expected operator, got %q", tok.Text)
 	}
 
-	switch tok.Text {
-	case "!=", "=", "!~", "~":
-		return tok.Text, nil
-	default:
+	if _, ok := defaultOps.lookup(tok.Text); !ok {
 		return "", fmt.Errorf("unknown operator, got %q", tok.Text)
 	}
+
+	return tok.Text, nil
 }
 
-func (p *Parser) lvalue() (string, error) {
+// STR: QA | A
+func (p *Parser) label() (string, error) {
 	tok := p.next()
 	switch tok.Type {
 	case EOF:
-		return "", fmt.Errorf("expected label name, got EOF")
-	case QuotedString, Atom:
+		return "", fmt.Errorf("expected a label name")
+	case String:
+		return tok.Text[1 : len(tok.Text)-1], nil
+	case Atom:
 		return tok.Text, nil
 	default:
 		return "", fmt.Errorf("expected label name, got %q", tok.Text)
 	}
 }
 
-func (p *Parser) rexpr() (string, error) {
+// STR: QA | A
+func (p *Parser) string() (string, error) {
 	tok := p.next()
 	switch tok.Type {
 	case EOF:
-		return "", fmt.Errorf("expected s name, got EOF")
-	case QuotedString, Atom:
+		return "", fmt.Errorf("expected a label value")
+	case String:
+		return tok.Text[1 : len(tok.Text)-1], nil
+	case Atom:
 		return tok.Text, nil
 	default:
-		return "", fmt.Errorf("expected label expression, got %q", tok.Text)
+		return "", fmt.Errorf("expected label value, got %q", tok.Text)
 	}
 }

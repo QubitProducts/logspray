@@ -29,47 +29,26 @@ func TestScanner(t *testing.T) {
 	}
 
 	var tests = []test{
-		{`this is a thing`,
+		{`job=test`,
 			[]Token{
-				Token{Type: 3, Line: 1, Text: "this"},
-				Token{Type: 3, Line: 1, Text: "is"},
-				Token{Type: 3, Line: 1, Text: "a"},
-				Token{Type: 3, Line: 1, Text: "thing"}}},
-		{`query = "hello world"`,
-			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
+				Token{Type: 4, Line: 1, Text: "job"},
 				Token{Type: 5, Line: 1, Text: "="},
-				Token{Type: 4, Line: 1, Text: "\"hello world\""}}},
-		{`query="hello world"`,
+				Token{Type: 4, Line: 1, Text: "test"}}},
+		{`job!=test`,
 			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
-				Token{Type: 5, Line: 1, Text: "="},
-				Token{Type: 4, Line: 1, Text: "\"hello world\""}}},
-		{`query='hello world'`,
-			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
-				Token{Type: 5, Line: 1, Text: "="},
-				Token{Type: 4, Line: 1, Text: "'hello world'"}}},
-		{`query=~'hello world.*'`,
-			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
-				Token{Type: 5, Line: 1, Text: "=~"},
-				Token{Type: 4, Line: 1, Text: "'hello world.*'"}}},
-		{`query!='hello world'`,
-			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
+				Token{Type: 4, Line: 1, Text: "job"},
 				Token{Type: 5, Line: 1, Text: "!="},
-				Token{Type: 4, Line: 1, Text: "'hello world'"}}},
-		{`query!~'hello world'`,
+				Token{Type: 4, Line: 1, Text: "test"}}},
+		{`job=~test`,
 			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
-				Token{Type: 5, Line: 1, Text: "!~"},
-				Token{Type: 4, Line: 1, Text: "'hello world'"}}},
-		{`query!~'hello world`,
+				Token{Type: 4, Line: 1, Text: "job"},
+				Token{Type: 5, Line: 1, Text: "=~"},
+				Token{Type: 4, Line: 1, Text: "test"}}},
+		{`job="test"`,
 			[]Token{
-				Token{Type: 3, Line: 1, Text: "query"},
-				Token{Type: 5, Line: 1, Text: "!~"},
-				Token{Type: TokError, Line: 7, Text: "unterminated quoted string"}}},
+				Token{Type: 4, Line: 1, Text: "job"},
+				Token{Type: 5, Line: 1, Text: "="},
+				Token{Type: 3, Line: 1, Text: "\"test\""}}},
 	}
 
 	for i, st := range tests {

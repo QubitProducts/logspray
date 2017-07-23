@@ -30,17 +30,16 @@ func TestParser(t *testing.T) {
 	}
 
 	var tests = []test{
-		{`job=thing`, `("likes"/0 [])`, ``},
-		{`job`, `("likes"/0 [])`, ``},
-		{`job=`, `("likes"/0 [])`, ``},
-		{`job++`, `("likes"/0 [])`, ``},
-		{`job job`, `("likes"/0 [])`, ``},
-		{`likes!="Thing"`, `("likes"/0 [])`, ``},
-		{`job = thing`, `("likes"/0 [])`, ``},
-		{`job ~ thing`, `("likes"/0 [])`, ``},
-		{`job !~ thing`, `("likes"/0 [])`, ``},
-		{`job !~ thing other = more`, `("likes"/0 [])`, ``},
-		{`job !~ thing other`, `("likes"/0 [])`, ``},
+		{`job=thing`, `[{job = thing}]`, ``},
+		{`job = thing`, `[{job = thing}]`, ``},
+		{`job = "thing"`, `[{job = thing}]`, ``},
+		{`"job" = "thing"`, `[{job = thing}]`, ``},
+		{`job!="thing"`, `[{job != thing}]`, ``},
+		{`job ~ thing`, `[{job ~ thing}]`, ``},
+		{`job !~ thing`, `[{job !~ thing}]`, ``},
+		{`job !~ thing other = more`, `[{job !~ thing} {other = more}]`, ``},
+		{`job !~ thing other`, `[]`, `expected label name, got EOF`},
+		{`job == thing`, `[]`, `unknown operator, got "=="`},
 	}
 
 	for i, st := range tests {
