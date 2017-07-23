@@ -45,7 +45,7 @@ const (
 )
 
 const special = "|&!=~"
-const punctuation = "-_."
+const punctuation = "-_.*"
 
 func (i Token) String() string {
 	switch {

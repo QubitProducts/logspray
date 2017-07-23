@@ -55,7 +55,7 @@ func TestParser(t *testing.T) {
 				t.Fatalf("\nexpected err:  %#v", st.err)
 			}
 
-			str := fmt.Sprintf("%v", t0)
+			str := fmt.Sprintf("%s", t0)
 			if str != st.exp {
 				t.Fatalf("\nexpected: %#v\ngot: %#v", st.exp, str)
 			}

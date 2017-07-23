@@ -49,6 +49,11 @@ func TestScanner(t *testing.T) {
 				Token{Type: 4, Line: 1, Text: "job"},
 				Token{Type: 5, Line: 1, Text: "="},
 				Token{Type: 3, Line: 1, Text: "\"test\""}}},
+		{`job=*`,
+			[]Token{
+				Token{Type: 4, Line: 1, Text: "job"},
+				Token{Type: 5, Line: 1, Text: "="},
+				Token{Type: 4, Line: 1, Text: "*"}}},
 	}
 
 	for i, st := range tests {

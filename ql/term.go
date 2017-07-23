@@ -18,11 +18,15 @@ package ql
 import (
 	"fmt"
 	"io"
+	"regexp"
+	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type queryTerm struct {
 	label    string
-	operator string
+	operator op
 	value    string
 }
 
@@ -47,6 +51,10 @@ func (p *Parser) readQueryTerms() (query, error) {
 	return query(qts), nil
 }
 
+func (qs query) String() string {
+	return fmt.Sprintf("%s", []queryTerm(qs))
+}
+
 // QT: LABEL OP STR
 func (p *Parser) readQueryTerm() (queryTerm, error) {
 	if p.peek().Type == EOF {
@@ -58,7 +66,7 @@ func (p *Parser) readQueryTerm() (queryTerm, error) {
 		return queryTerm{}, err
 	}
 
-	op, err := p.operator()
+	opb, err := p.operator()
 	if err != nil {
 		return queryTerm{}, err
 	}
@@ -68,6 +76,7 @@ func (p *Parser) readQueryTerm() (queryTerm, error) {
 		return queryTerm{}, err
 	}
 
+	op, err := opb(rval)
 	return queryTerm{
 		label:    lval,
 		operator: op,
@@ -75,43 +84,113 @@ func (p *Parser) readQueryTerm() (queryTerm, error) {
 	}, nil
 }
 
-type op struct{}
+func (qs queryTerm) String() string {
+	return fmt.Sprintf("{%s %s %s}", qs.label, qs.operator, qs.value)
+}
 
-type opSet map[string]*op
+type op interface {
+	match(rv string) bool
+}
+
+type opBuilder func(lv string) (op, error)
+
+type opSet map[string]opBuilder
 
 // defaultOps is a set of ops totally stolen from SWI, I have
 // literally no idea what 90% of these do.
 var defaultOps = opSet{
-	"=":  {},
-	"~":  {},
-	"!=": {},
-	"!~": {},
+	"=":  buildOpEqual,
+	"~":  buildOpMatch,
+	"!=": buildOpNotEqual,
+	"!~": buildOpNotMatch,
 }
 
-func (os opSet) lookup(s string) (*op, bool) {
-	ops, ok := os[s]
+type compareOp string
+
+func (lv compareOp) String() string {
+	return "="
+}
+
+func (lv compareOp) match(rv string) bool {
+	return string(lv) == "*" || strings.Compare(string(lv), rv) == 0
+}
+
+func buildOpEqual(lv string) (op, error) {
+	return compareOp(lv), nil
+}
+
+type compareNeOp string
+
+func (lv compareNeOp) String() string {
+	return "!="
+}
+func (lv compareNeOp) match(rv string) bool {
+	return strings.Compare(string(lv), rv) != 0
+}
+func buildOpNotEqual(lv string) (op, error) {
+	return compareNeOp(lv), nil
+}
+
+type matchOp regexp.Regexp
+
+func (lv *matchOp) String() string {
+	return "~"
+}
+func (lv *matchOp) match(rv string) bool {
+	return (*regexp.Regexp)(lv).MatchString(rv)
+}
+func buildOpMatch(lv string) (op, error) {
+	re, err := regexp.Compile(lv)
+	if err != nil {
+		return nil, errors.Wrap(err, "build regexp match failed")
+	}
+
+	return (*matchOp)(re), nil
+}
+
+type matchNeOp regexp.Regexp
+
+func (lv *matchNeOp) String() string {
+	return "!~"
+}
+func (lv *matchNeOp) match(rv string) bool {
+	return !(*regexp.Regexp)(lv).MatchString(rv)
+}
+func buildOpNotMatch(lv string) (op, error) {
+	re, err := regexp.Compile(lv)
+	if err != nil {
+		return nil, errors.Wrap(err, "build regexp match failed")
+	}
+
+	return (*matchNeOp)(re), nil
+}
+
+func (os opSet) lookup(s string) (opBuilder, bool) {
+	opb, ok := os[s]
 	if !ok {
 		return nil, false
 	}
-	return ops, true
+	return opb, true
 }
 
 // OP: "=" | "!=" | "~" | "!~"
-func (p *Parser) operator() (string, error) {
+func (p *Parser) operator() (opBuilder, error) {
 	tok := p.next()
 	switch tok.Type {
 	case Operator:
 	case EOF:
-		return "", fmt.Errorf("expected label name, got EOF")
+		return nil, fmt.Errorf("expected label name, got EOF")
 	default:
-		return "", fmt.Errorf("expected operator, got %q", tok.Text)
+		return nil, fmt.Errorf("expected operator, got %q", tok.Text)
 	}
 
-	if _, ok := defaultOps.lookup(tok.Text); !ok {
-		return "", fmt.Errorf("unknown operator, got %q", tok.Text)
+	var opb opBuilder
+	var ok bool
+	if opb, ok = defaultOps.lookup(tok.Text); !ok {
+		return nil, fmt.Errorf("unknown operator, got %q", tok.Text)
 	}
 
-	return tok.Text, nil
+	return opb, nil
 }
 
 // STR: QA | A
