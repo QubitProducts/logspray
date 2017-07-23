@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/QubitProducts/logspray/ql"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
@@ -34,7 +35,7 @@ import (
 // Search searches the shard file for messages in the provided time range,
 // matched by matcher, and passes them to msgFunc. If the reverse is true the
 // file will be searched in reverse order
-func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher logspray.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	s.RLock()
 	defer s.RUnlock()
 

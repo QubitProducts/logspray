@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/QubitProducts/logspray/ql"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -214,7 +215,7 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 	return fs
 }
 
-func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher logspray.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	if s == nil {
 		return nil
 	}

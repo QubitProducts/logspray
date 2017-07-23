@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/QubitProducts/logspray/ql"
 	"github.com/golang/protobuf/ptypes"
 )
 
@@ -28,9 +29,9 @@ import (
 func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interval time.Duration, maxDPs int, targets []string) (map[string][]Data, error) {
 	res := map[string][]Data{}
 
-	var matchers []logspray.MatchFunc
+	var matchers []ql.MatchFunc
 	for _, t := range targets {
-		matcher, err := logspray.Compile(t)
+		matcher, err := ql.Compile(t)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +71,7 @@ func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interv
 
 // GrafanaAnnotations implements the grafana Simple JSON Annotations request
 func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, query string) ([]Annotation, error) {
-	matcher, err := logspray.Compile(query)
+	matcher, err := ql.Compile(query)
 	if err != nil {
 		return nil, err
 	}

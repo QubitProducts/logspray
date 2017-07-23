@@ -23,6 +23,7 @@ import (
 
 	"github.com/QubitProducts/logspray/indexer"
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/QubitProducts/logspray/ql"
 	"github.com/QubitProducts/logspray/sinks"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
@@ -238,7 +239,7 @@ func (l *logServer) Tail(r *logspray.TailRequest, s logspray.LogService_TailServ
 	tick := time.NewTicker(5 * time.Second)
 	defer tick.Stop()
 
-	matcher, err := logspray.Compile(r.Query)
+	matcher, err := ql.Compile(r.Query)
 	if err != nil {
 		return err
 	}
@@ -355,7 +356,7 @@ func (l *logServer) Search(ctx context.Context, r *logspray.SearchRequest) (*log
 		return nil, err
 	}
 
-	matcher, err := logspray.Compile(r.Query)
+	matcher, err := ql.Compile(r.Query)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +394,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 		return err
 	}
 
-	matcher, err := logspray.Compile(r.Query)
+	matcher, err := ql.Compile(r.Query)
 	if err != nil {
 		return err
 	}

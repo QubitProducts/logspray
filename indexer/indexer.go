@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/QubitProducts/logspray/ql"
 	"github.com/QubitProducts/logspray/sinks"
 
 	uuid "github.com/satori/go.uuid"
@@ -228,7 +229,7 @@ func (idx *Indexer) LabelValues(name string, from, to time.Time, count int) ([]s
 
 // Search queries the index for documents matching the provided
 // search query.
-func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher logspray.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	if to.Before(from) {
 		return fmt.Errorf("time to must be after time from")
 	}
