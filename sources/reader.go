@@ -152,6 +152,7 @@ func (ts *targetSet) readAllFromTarget(ctx context.Context, w sinks.MessageWrite
 			if glog.V(1) {
 				glog.Errorf("read message error: %#v , %v", *u, err)
 			}
+			continue
 		}
 		lineCount.WithLabelValues(u.Labels["job"]).Inc()
 		bytesCount.WithLabelValues(u.Labels["job"]).Add(float64(len(msg.Text)))
