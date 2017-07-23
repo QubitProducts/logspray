@@ -106,6 +106,24 @@ func TestQuery_Matches(t *testing.T) {
 			false,
 		},
 		{
+			`job=my.+`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			false,
+		},
+		{
+			`job~my.+`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
 			`job~"my.+"`,
 			&logspray.Message{Labels: map[string]string{
 				"job": "myjob",

@@ -20,7 +20,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -44,8 +43,7 @@ const (
 	Operator // Symbol made up of special chars
 )
 
-const special = "|&!=~"
-const punctuation = "-_.*"
+const special = "!=~"
 
 func (i Token) String() string {
 	switch {
@@ -57,6 +55,13 @@ func (i Token) String() string {
 		return fmt.Sprintf("%s: %.20q...", i.Type, i.Text)
 	}
 	return fmt.Sprintf("%s: %q", i.Type, i.Text)
+}
+
+func (i Token) Error() string {
+	if i.Type == TokError {
+		return i.Text
+	}
+	return "no error!"
 }
 
 const eof = -1
@@ -294,19 +299,12 @@ Loop:
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or punctuation.
 func isAlphaNumeric(r rune) bool {
-	return strings.ContainsRune(punctuation, r) ||
-		unicode.IsLetter(r) ||
-		unicode.IsDigit(r)
+	return !isSpecial(r) && !isSpace(r) && !isEndOfLine(r) && r != rune(-1)
 }
 
 // isSpecial
 func isSpecial(r rune) bool {
 	return strings.ContainsRune(special, r)
-}
-
-// isDigit reports whether r is an ASCII digit.
-func isDigit(r rune) bool {
-	return '0' <= r && r <= '9'
 }
 
 // isSpace reports whether r is a space character.

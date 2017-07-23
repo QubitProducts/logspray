@@ -13,7 +13,11 @@
 
 package ql
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+)
 
 // Parser stores the state for the ivy parser.
 type Parser struct {
@@ -45,28 +49,22 @@ func newParser(scanner *Scanner) *Parser {
 	}
 }
 
-func (p *Parser) next() Token {
-	return p.nextErrorOut(true)
-}
-
-// nextErrorOut accepts a flag whether to trigger a panic on error.
-// The flag is set to false when we are draining input tokens in FlushToNewline.
-func (p *Parser) nextErrorOut(errorOut bool) Token {
+func (p *Parser) next() (Token, error) {
 	tok := p.peekTok
 	if tok.Type != EOF {
 		p.peekTok = Token{Type: EOF}
 	} else {
 		tok = p.scanner.Next()
 	}
-	if tok.Type == TokError && errorOut {
-		panic(fmt.Errorf("%q", tok)) // Need a local output writer
+	if tok.Type == TokError {
+		return tok, errors.Wrap(tok, "error parsing query")
 	}
 	p.curTok = tok
 	if tok.Type != Newline {
 		// Show the line number before we hit the newline.
 		p.lineNum = tok.Line
 	}
-	return tok
+	return tok, nil
 }
 
 func (p *Parser) peek() Token {

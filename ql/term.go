@@ -175,7 +175,10 @@ func (os opSet) lookup(s string) (opBuilder, bool) {
 
 // OP: "=" | "!=" | "~" | "!~"
 func (p *Parser) operator() (opBuilder, error) {
-	tok := p.next()
+	tok, err := p.next()
+	if err != nil {
+		return nil, err
+	}
 	switch tok.Type {
 	case Operator:
 	case EOF:
@@ -195,7 +198,10 @@ func (p *Parser) operator() (opBuilder, error) {
 
 // STR: QA | A
 func (p *Parser) label() (string, error) {
-	tok := p.next()
+	tok, err := p.next()
+	if err != nil {
+		return "", err
+	}
 	switch tok.Type {
 	case EOF:
 		return "", fmt.Errorf("expected a label name")
@@ -210,7 +216,10 @@ func (p *Parser) label() (string, error) {
 
 // STR: QA | A
 func (p *Parser) string() (string, error) {
-	tok := p.next()
+	tok, err := p.next()
+	if err != nil {
+		return "", err
+	}
 	switch tok.Type {
 	case EOF:
 		return "", fmt.Errorf("expected a label value")
