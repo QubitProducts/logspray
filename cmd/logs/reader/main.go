@@ -13,7 +13,7 @@
 // Package logspray is a collection of tools for streaming and indexing
 // large volumes of dynamic logs.
 
-package main
+package reader
 
 import (
 	"context"
@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"regexp"
 	"strings"
 	"time"
@@ -34,8 +33,10 @@ import (
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/QubitProducts/logspray/cmd/logs/root"
 	"github.com/QubitProducts/logspray/relabel"
 	"github.com/QubitProducts/logspray/sinks"
 	"github.com/QubitProducts/logspray/sinks/devnull"
@@ -48,36 +49,57 @@ import (
 )
 
 var (
-	logSprayAddr = flag.String("server", "localhost:10000", "Address to send logs to")
-	srvns        = flag.String("srv.ns", "", "Comma separated list of name servers for SRV lookup of server addresses,")
-	statsAddr    = flag.String("stats.addr", ":9998", "Address to listen for stats on, set to \"\" to disable")
-	dockerFind   = flag.Bool("docker", true, "Whether check for docker container logs")
-	dockerRoot   = flag.String("docker.root", "", "Path to the docker root, by default it is autodiscovered")
-
-	todevnull = flag.Bool("devnull", false, "Drop all logs, but do the stats")
-
-	caFile   = flag.String("tls.ca", "", "Path to root CA")
-	insecure = flag.Bool("tls.insecure", false, "Turn off transport cert verification")
-
-	svcj           = flag.String("service", "", "Google service account file")
-	oauth2TokenURL = flag.String("oauth2.token_url", "", "URL for oauth2 tokens")
+	logSprayAddr   string
+	srvns          string
+	statsAddr      string
+	dockerFind     bool
+	dockerRoot     string
+	todevnull      bool
+	caFile         string
+	insecure       bool
+	svcj           string
+	oauth2TokenURL string
 )
 
-func main() {
+func init() {
+	root.RootCmd.AddCommand(readerCmd)
+
+	readerCmd.Flags().StringVar(&logSprayAddr, "server", "localhost:10000", "Address to send logs to")
+	readerCmd.Flags().StringVar(&srvns, "srv.ns", "", "Comma separated list of name servers for SRV lookup of server addresses,")
+	readerCmd.Flags().StringVar(&statsAddr, "stats.addr", ":9998", "Address to listen for stats on, set to \"\" to disable")
+	readerCmd.Flags().BoolVar(&dockerFind, "docker", true, "Whether check for docker container logs")
+	readerCmd.Flags().StringVar(&dockerRoot, "docker.root", "", "Path to the docker root, by default it is autodiscovered")
+	readerCmd.Flags().BoolVar(&todevnull, "devnull", false, "Drop all logs, but do the stats")
+	readerCmd.Flags().StringVar(&caFile, "tls.ca", "", "Path to root CA")
+	readerCmd.Flags().BoolVar(&insecure, "tls.insecure", false, "Turn off transport cert verification")
+	readerCmd.Flags().StringVar(&svcj, "service", "", "Google service account file")
+	readerCmd.Flags().StringVar(&oauth2TokenURL, "oauth2.token_url", "", "URL for oauth2 tokens")
+}
+
+var readerCmd = &cobra.Command{
+	Use:   "reader",
+	Short: "reader collects logs and publishes them to a client",
+	Long: `This is an example log rader, it can collect logs from files
+	and docker containers. re-labeling rules can be used to rewrite message
+	and decorate them with labels`,
+	Run: run,
+}
+
+func run(*cobra.Command, []string) {
 	flag.Set("logtostderr", "true")
 	flag.Parse()
 	glog.CopyStandardLogTo("INFO")
 	var err error
 
-	if *statsAddr != "" {
+	if statsAddr != "" {
 		http.Handle("/metrics", promhttp.Handler())
-		go http.ListenAndServe(*statsAddr, nil)
+		go http.ListenAndServe(statsAddr, nil)
 	}
 
 	var outSink sinks.Sinker
 	switch {
 
-	case *todevnull:
+	case todevnull:
 		outSink = &devnull.DevNull{}
 
 	default:
@@ -89,8 +111,8 @@ func main() {
 
 		var creds credentials.TransportCredentials
 		// Load a ca to verify server cert from
-		if *caFile != "" {
-			cert, err := ioutil.ReadFile(*caFile)
+		if caFile != "" {
+			cert, err := ioutil.ReadFile(caFile)
 			if err != nil {
 				log.Fatalf("Unable to read ca file %v", err)
 			}
@@ -98,9 +120,9 @@ func main() {
 			certPool := x509.NewCertPool()
 			certPool.AppendCertsFromPEM([]byte(cert))
 
-			creds = credentials.NewClientTLSFromCert(certPool, *logSprayAddr)
+			creds = credentials.NewClientTLSFromCert(certPool, logSprayAddr)
 		} else {
-			creds = credentials.NewTLS(&tls.Config{InsecureSkipVerify: *insecure})
+			creds = credentials.NewTLS(&tls.Config{InsecureSkipVerify: insecure})
 		}
 
 		dopts = append(dopts,
@@ -108,8 +130,8 @@ func main() {
 		)
 
 		// Use an explicit DNS server for SRV lookups.
-		if *srvns != "" {
-			res, err := newSRVNameservice(strings.Split(*srvns, ","))
+		if srvns != "" {
+			res, err := newSRVNameservice(strings.Split(srvns, ","))
 			if err != nil {
 				glog.Errorf("could not create srv lookup service, %s", err.Error())
 				return
@@ -119,7 +141,7 @@ func main() {
 		}
 
 		conn, err := grpc.Dial(
-			*logSprayAddr,
+			logSprayAddr,
 			dopts...,
 		)
 		if err != nil {
@@ -170,7 +192,7 @@ func main() {
 						regexp.MustCompile("^MARATHON_.+"),
 						regexp.MustCompile("^CHRONOS_.+"),
 					}),
-				docker.WithRoot(*dockerRoot),
+				docker.WithRoot(dockerRoot),
 			)
 			if err != nil {
 				log.Fatal(err)

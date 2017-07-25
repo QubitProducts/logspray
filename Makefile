@@ -18,20 +18,14 @@ server: protoc
 clean:
 	rm log.pb.go log.pb.gw.go
 
-build-docker-binary: logspray-reader logspray-server logspray-client
+build-docker-binary: logs
 
-logspray-reader: protoc server
-	CGO_ENABLED=0 cd cmd/logreader && go build -i -o ../../logspray-reader
-
-logspray-server: protoc server
-	CGO_ENABLED=0 cd cmd/logserver && go build -i -o ../../logspray-server
-
-logspray-client: protoc
-	CGO_ENABLED=0 cd cmd/logclient && go build -i -o ../../logspray-client
+logs: protoc server
+	CGO_ENABLED=0 cd cmd/logs && go build -i -o ../../logs
 
 prepare-deploy: build-docker-binary
 
-PACKAGE_NAME=logspray-reader
+PACKAGE_NAME=logspray
 PACKAGE_VERSION=$(VERSION)
 
 PACKAGE_REVISION=0
@@ -39,7 +33,7 @@ PACKAGE_ARCH=amd64
 PACKAGE_MAINTAINER=tristan@qubit.com
 PACKAGE_FILE=$(PACKAGE_NAME)_$(PACKAGE_VERSION)-$(PACKAGE_REVISION)_$(PACKAGE_ARCH).deb
 
-BINNAME=logspray-reader
+BINNAME=logs
 
 PWD=$(shell pwd)
 CURL=/usr/bin/curl
@@ -69,7 +63,7 @@ packages: package-dist
 	  -p ../../$(PACKAGE_FILE) \
 	  .
 
-deb-clean: 
+deb-clean:
 	rm -f $(PACKAGE_FILE)
 	rm -rf dist
 	rm -rf build

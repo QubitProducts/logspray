@@ -13,7 +13,7 @@
 // Package logspray is a collection of tools for streaming and indexing
 // large volumes of dynamic logs.
 
-package main
+package reader
 
 import (
 	"context"

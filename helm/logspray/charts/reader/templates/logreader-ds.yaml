@@ -22,8 +22,9 @@ spec:
       - name: logspray-reader
         image: {{.Values.global.dockerImage}}
         command:
-          - '/opt/logspray/bin/logspray-reader'
+          - '/opt/logspray/bin/logs'
         args:
+          - reader
           - -logtostderr
           - -server
           - {{.Values.server}}

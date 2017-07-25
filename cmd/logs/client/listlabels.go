@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func doListLabels(ctx context.Context, client logspray.LogServiceClient) {
 		Name:  flag.Args()[0],
 		From:  st,
 		To:    et,
-		Count: int64(*count),
+		Count: int64(count),
 	}
 	res, err := client.LabelValues(ctx, lvr)
 	if err != nil {
@@ -45,7 +45,7 @@ func doListLabels(ctx context.Context, client logspray.LogServiceClient) {
 		fmt.Println(n)
 	}
 
-	if len(res.Values) == int(*count) {
+	if len(res.Values) == int(count) {
 		fmt.Fprint(os.Stderr, "-- maximum request number of values returned, more may exist\n", int(res.TotalHitCount)-len(res.Values))
 	}
 }

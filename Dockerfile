@@ -1,7 +1,6 @@
 FROM scratch
 
-COPY ./logspray-server /opt/logspray/bin
-COPY ./logspray-reader /opt/logspray/bin
+COPY ./logs /opt/logspray/bin
 WORKDIR  /opt/logspray/bin
 
-ENTRYPOINT ["/opt/logspray/bin/logspray-server"]
+ENTRYPOINT ["/opt/logspray/bin/logs"]

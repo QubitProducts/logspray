@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package client
 
 import (
 	"crypto/tls"
@@ -23,34 +23,62 @@ import (
 	"github.com/Masterminds/sprig"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/spf13/cobra"
 
+	"github.com/QubitProducts/logspray/cmd/logs/root"
 	"github.com/QubitProducts/logspray/proto/logspray"
 )
 
 // Flags
 var (
-	optFlags    = flag.NewFlagSet("logclient", flag.ContinueOnError)
-	addr        = optFlags.String("addr", "127.0.0.1:5000", "address of logserver")
-	cacheToken  = optFlags.Bool("cachetoken", true, "use cached oauth2 token")
-	showLabels  = optFlags.Bool("showlabels", false, "show all labels")
-	insecure    = optFlags.Bool("tls.insecure", false, "Don't check SSL cert details")
-	format      = optFlags.String("fmt", "{{.Text}}", "Go template to use to format each output line")
-	grep        = optFlags.String("grep", "", "Regular expression to match the message on the server side")
-	grepv       = optFlags.Bool("grep-v", false, "Negate regex match")
-	count       = optFlags.Uint64("count", 10, "number of values to return")
-	startTime   = cliTime(time.Now().Add(-1 * time.Hour))
-	endTime     = cliTime(time.Now())
-	actionFlags = flag.NewFlagSet("latonactions", flag.ContinueOnError)
-	follow      = actionFlags.Bool("f", false, "follow logs")
-	listLabels  = actionFlags.Bool("labels", false, "list labels and label values")
-	search      = actionFlags.Bool("search", false, "search for log entries")
+	cacheToken bool
+	showLabels bool
+	insecure   bool
+	format     string
+	grep       string
+	grepv      bool
+	count      uint64
+	startTime  = cliTime(time.Now().Add(-1 * time.Hour))
+	endTime    = cliTime(time.Now())
+
+	follow     bool
+	listLabels bool
+	search     bool
 
 	outTmpl *template.Template
 )
 
+var (
+	addr string
+)
+
 func init() {
-	optFlags.Var(&startTime, "start", "Start of search query time (default to now-1h)")
-	optFlags.Var(&endTime, "end", "End of search query time (default to now")
+	root.RootCmd.AddCommand(clientCmd)
+
+	clientCmd.PersistentFlags().StringVar(&addr, "addr", "127.0.0.1:5000", "address of logserver")
+
+	clientCmd.Flags().Var(&startTime, "start", "Start of search query time (default to now-1h)")
+	clientCmd.Flags().Var(&endTime, "end", "End of search query time (default to now")
+
+	clientCmd.Flags().BoolVar(&cacheToken, "cachetoken", true, "use cached oauth2 token")
+	clientCmd.Flags().BoolVar(&showLabels, "showlabels", false, "show all labels")
+	clientCmd.Flags().BoolVar(&insecure, "tls.insecure", false, "Don't check SSL cert details")
+	clientCmd.Flags().StringVar(&format, "fmt", "{{.Text}}", "Go template to use to format each output line")
+	clientCmd.Flags().StringVar(&grep, "grep", "", "Regular expression to match the message on the server side")
+	clientCmd.Flags().BoolVar(&grepv, "grep-v", false, "Negate regex match")
+	clientCmd.Flags().Uint64Var(&count, "count", 10, "number of values to return")
+
+	clientCmd.Flags().BoolVarP(&follow, "follow", "f", false, "follow logs")
+	clientCmd.Flags().BoolVar(&listLabels, "labels", false, "list labels and label values")
+	clientCmd.Flags().BoolVar(&search, "search", false, "search for log entries")
+}
+
+var clientCmd = &cobra.Command{
+	Use:     "client",
+	Short:   `client can be used for streaming and searching logs`,
+	Long:    `client is the primary tool for querying a logspray cluster.`,
+	Example: `logs client -f job=myjob dc~"europe-[0-9]"`,
+	RunE:    run,
 }
 
 type cliTime time.Time
@@ -61,6 +89,10 @@ func (t *cliTime) Get() interface{} {
 
 func (t *cliTime) String() string {
 	return time.Time(*t).String()
+}
+
+func (t *cliTime) Type() string {
+	return "time"
 }
 
 func (t *cliTime) Set(s string) error {
@@ -83,22 +115,13 @@ func (t *cliTime) Set(s string) error {
 	}
 }
 
-func main() {
-	actionFlags.VisitAll(func(f *flag.Flag) {
-		flag.Var(f.Value, f.Name, f.Usage)
-	})
-	optFlags.VisitAll(func(f *flag.Flag) {
-		flag.Var(f.Value, f.Name, f.Usage)
-	})
-	flag.Usage = usage
-	flag.Parse()
-
+func run(*cobra.Command, []string) error {
 	ctx := context.Background()
 
 	dopts := []grpc.DialOption{}
 
 	var creds credentials.TransportCredentials
-	if *insecure {
+	if insecure {
 		creds = credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	} else {
 		certPool := x509.NewCertPool()
@@ -109,7 +132,7 @@ func main() {
 	dopts = append(dopts, grpc.WithTransportCredentials(creds))
 
 	conn, err := grpc.Dial(
-		*addr,
+		addr,
 		dopts...,
 	)
 	if err != nil {
@@ -118,28 +141,30 @@ func main() {
 	defer conn.Close()
 	client := logspray.NewLogServiceClient(conn)
 
-	outTmpl, err = template.New("out").Funcs(sprig.TxtFuncMap()).Parse(*format + "\n")
+	outTmpl, err = template.New("out").Funcs(sprig.TxtFuncMap()).Parse(format + "\n")
 	if err != nil {
 		fatalf("failed to compile output template, %v", err)
 	}
 
-	if *grep != "" {
-		_, err := regexp.Compile(*grep)
+	if grep != "" {
+		_, err := regexp.Compile(grep)
 		if err != nil {
 			fatalf("could not compile grep regex, %v", err)
 		}
 	}
 
 	switch {
-	case *follow:
+	case follow:
 		doFollow(ctx, client)
-	case *listLabels:
+	case listLabels:
 		doListLabels(ctx, client)
-	case *search:
+	case search:
 		doSearch(ctx, client)
 	default:
 		fatalf("must pick an action")
 	}
+
+	return nil
 }
 
 func outputMessage(m *logspray.Message) {
@@ -167,17 +192,4 @@ func usageFatalf(str string, vs ...interface{}) {
 	fmt.Fprintf(os.Stderr, str, vs...)
 	flag.Usage()
 	os.Exit(1)
-}
-
-func usage() {
-	fmt.Fprintf(os.Stderr,
-		`Usage: laton [label:value ...]
-
-`)
-	fmt.Fprintln(os.Stderr, "Actions")
-	actionFlags.PrintDefaults()
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Options")
-	optFlags.PrintDefaults()
-	os.Exit(2)
 }

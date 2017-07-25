@@ -21,8 +21,9 @@ spec:
       - name: logspray-server
         image: {{.Values.global.dockerImage}}
         command:
-          - '/opt/logspray/bin/logspray-server'
+          - '/opt/logspray/bin/logs'
         args:
+          - server
           - -logtostderr
           - -v
           - "1"

@@ -13,7 +13,7 @@
 // Package logspray is a collection of tools for streaming and indexing
 // large volumes of dynamic logs.
 
-package main
+package server
 
 import (
 	"crypto/rsa"
@@ -21,22 +21,20 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	_ "expvar"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
-	"time"
-	//_ "net/http/httptrace"
 	"strings"
 	"sync"
+	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/mwitkow/go-grpc-middleware"
+	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -47,30 +45,60 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	logs "github.com/QubitProducts/logspray/cmd/logs/root"
 	"github.com/QubitProducts/logspray/indexer"
 	server "github.com/QubitProducts/logspray/server"
 )
 
 var (
-	tlsAddr   = flag.String("tls.addr", "localhost:10000", "Address listen for gRPC TLS on")
-	adminAddr = flag.String("admin.addr", "localhost:9999", "Address listen for plain http")
+	tlsAddr   string
+	adminAddr string
 
-	caFile = flag.String("tls.cacert", "", "Path to root CA")
+	caFile string
 
-	certFile = flag.String("tls.cert", "cert.pem", "Path to TLS Cert file")
-	keyFile  = flag.String("tls.key", "key.pem", "Path TLS Key file")
+	certFile string
+	keyFile  string
 
-	jwsKeyURL = flag.String("jws.key-url", "", "URL to retrieve JWS signing key from")
+	jwsKeyURL string
 
-	indexDir      = flag.String("index.dir", "data", "Directory to store the index data in")
-	shardDuration = flag.Duration("index.shard-duration", 15*time.Minute, "Length of eacch index shard")
-	batchSize     = flag.Int("index.batch-size", 250, "Size of batches sent to the index")
+	indexDir      string
+	shardDuration time.Duration
+	batchSize     int
 
-	grafanaBasicAuthUser = flag.String("grafana.user", os.Getenv("GRAFANA_BASICAUTH_USER"), "User for grafana simplejson basic auth")
-	grafanaBasicAuthPass = flag.String("grafana.pass", os.Getenv("GRAFANA_BASICAUTH_PASS"), "Password for grafana simplejson basic auth")
+	grafanaBasicAuthUser string
+	grafanaBasicAuthPass string
 )
 
-func main() {
+func init() {
+	logs.RootCmd.AddCommand(serverCmd)
+
+	serverCmd.Flags().StringVar(&tlsAddr, "tls.addr", "localhost:10000", "Address listen for gRPC TLS on")
+	serverCmd.Flags().StringVar(&adminAddr, "admin.addr", "localhost:9999", "Address listen for plain http")
+
+	serverCmd.Flags().StringVar(&caFile, "tls.cacert", "", "Path to root CA")
+
+	serverCmd.Flags().StringVar(&certFile, "tls.cert", "cert.pem", "Path to TLS Cert file")
+	serverCmd.Flags().StringVar(&keyFile, "tls.key", "key.pem", "Path TLS Key file")
+
+	serverCmd.Flags().StringVar(&jwsKeyURL, "jws.key-url", "", "URL to retrieve JWS signing key from")
+
+	serverCmd.Flags().StringVar(&indexDir, "index.dir", "data", "Directory to store the index data in")
+	serverCmd.Flags().DurationVar(&shardDuration, "index.shard-duration", 15*time.Minute, "Length of eacch index shard")
+	serverCmd.Flags().IntVar(&batchSize, "index.batch-size", 250, "Size of batches sent to the index")
+
+	serverCmd.Flags().StringVar(&grafanaBasicAuthUser, "grafana.user", os.Getenv("GRAFANA_BASICAUTH_USER"), "User for grafana simplejson basic auth")
+	serverCmd.Flags().StringVar(&grafanaBasicAuthPass, "grafana.pass", os.Getenv("GRAFANA_BASICAUTH_PASS"), "Password for grafana simplejson basic auth")
+}
+
+// rootCmd represents the base command when called without any subcommands
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "the logspray server",
+	Long:  `The server can recieves logs, and stores them for later querying`,
+	RunE:  run,
+}
+
+func run(*cobra.Command, []string) error {
 	//runtime.SetBlockProfileRate(100)
 	//runtime.SetMutexProfileFraction(100)
 
@@ -81,14 +109,14 @@ func main() {
 
 	opts := []grpc.ServerOption{}
 
-	glog.Infof("Loading TLS cert file %v", *certFile)
-	cert, err := ioutil.ReadFile(*certFile)
+	glog.Infof("Loading TLS cert file %v", certFile)
+	cert, err := ioutil.ReadFile(certFile)
 	if err != nil {
 		glog.Fatalf("Unable to read cert file %v", err)
 	}
 
-	glog.Infof("Loading TLS key file %v", *keyFile)
-	key, err := ioutil.ReadFile(*keyFile)
+	glog.Infof("Loading TLS key file %v", keyFile)
+	key, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		glog.Fatalf("Unable to read key file %v", err)
 	}
@@ -104,9 +132,9 @@ func main() {
 		glog.Fatalf("Unable to add cert to ca pool, %v", err)
 	}
 
-	if *caFile != "" {
-		glog.Infof("Loading ca file %v", *caFile)
-		caCert, err := ioutil.ReadFile(*caFile)
+	if caFile != "" {
+		glog.Infof("Loading ca file %v", caFile)
+		caCert, err := ioutil.ReadFile(caFile)
 		if err != nil {
 			glog.Fatalf("Unable to read ca file %v", err)
 		}
@@ -117,7 +145,7 @@ func main() {
 		}
 
 		opts = append(opts,
-			grpc.Creds(credentials.NewClientTLSFromCert(certPool, *tlsAddr)),
+			grpc.Creds(credentials.NewClientTLSFromCert(certPool, tlsAddr)),
 		)
 	}
 
@@ -125,9 +153,9 @@ func main() {
 	sis := []grpc.StreamServerInterceptor{grpc_prometheus.StreamServerInterceptor}
 
 	checkClaims := false
-	if *jwsKeyURL != "" {
+	if jwsKeyURL != "" {
 		// Setup JWS Token verification
-		cc := certCache{u: *jwsKeyURL}
+		cc := certCache{u: jwsKeyURL}
 		uis = append(uis, server.MakeAuthUnaryInterceptor(cc.getKeys))
 		sis = append(sis, server.MakeAuthStreamingInterceptor(cc.getKeys))
 		checkClaims = true
@@ -141,13 +169,13 @@ func main() {
 	grpcServer := grpc.NewServer(opts...)
 	server.RegisterStats()
 
-	conn, err := net.Listen("tcp", *tlsAddr)
+	conn, err := net.Listen("tcp", tlsAddr)
 	if err != nil {
 		glog.Fatalf("Unable to list on TLS port, %v", err)
 	}
 
 	srv := &http.Server{
-		Addr: *tlsAddr,
+		Addr: tlsAddr,
 		TLSConfig: &tls.Config{
 			Certificates:             []tls.Certificate{pair},
 			NextProtos:               []string{"h2"},
@@ -185,11 +213,11 @@ func main() {
 	}
 
 	var indx *indexer.Indexer
-	if *indexDir != "" {
+	if indexDir != "" {
 		indx, err = indexer.New(
-			indexer.WithDataDir(*indexDir),
-			indexer.WithSharDuration(*shardDuration),
-			indexer.WithBatchSize(uint(*batchSize)),
+			indexer.WithDataDir(indexDir),
+			indexer.WithSharDuration(shardDuration),
+			indexer.WithBatchSize(uint(batchSize)),
 		)
 		if err != nil {
 			glog.Fatalf("Unable to create index, err = %v", err)
@@ -204,7 +232,7 @@ func main() {
 		dopts,
 		server.WithIndex(indx),
 		server.WithCheckClaims(checkClaims),
-		server.WithGrafanaBasicAuth(*grafanaBasicAuthUser, *grafanaBasicAuthPass))
+		server.WithGrafanaBasicAuth(grafanaBasicAuthUser, grafanaBasicAuthPass))
 	if err != nil {
 		glog.Fatalf("Failed to register endpoints, %v", err)
 	}
@@ -212,23 +240,23 @@ func main() {
 	e := errgroup.Group{}
 
 	e.Go(func() error {
-		glog.Infof("grpc at: %s\n", *tlsAddr)
+		glog.Infof("grpc at: %s\n", tlsAddr)
 		return srv.Serve(tls.NewListener(conn, srv.TLSConfig))
 	})
 
-	if *adminAddr != "" {
+	if adminAddr != "" {
 		e.Go(func() error {
-			glog.Infof("admin services at at: %s\n", *adminAddr)
+			glog.Infof("admin services at at: %s\n", adminAddr)
 			server.HandleSwagger(http.DefaultServeMux)
 			http.Handle("/metrics", promhttp.Handler())
 
-			return http.ListenAndServe(*adminAddr, nil)
+			return http.ListenAndServe(adminAddr, nil)
 		})
 	}
 
 	e.Wait()
 
-	return
+	return nil
 }
 
 type certCache struct {

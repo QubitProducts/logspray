@@ -1,5 +1,3 @@
-logspray-server
-logspray-reader
-logspray-client
+logs
 dist/
 vendor

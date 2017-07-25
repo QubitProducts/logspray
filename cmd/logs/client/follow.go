@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"context"
@@ -93,7 +93,7 @@ Reconnect:
 			}
 			if newlabels {
 				line := "--"
-				if !*showLabels {
+				if !showLabels {
 					for k, v := range newSigLabels {
 						line = line + fmt.Sprintf(" %s=%s", k, v)
 					}

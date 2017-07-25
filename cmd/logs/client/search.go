@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func doSearch(ctx context.Context, client logspray.LogServiceClient) {
 	sr := &logspray.SearchRequest{
 		From:  st,
 		To:    et,
-		Count: *count,
+		Count: count,
 		Query: strings.Join(flag.Args(), " "),
 	}
 	res, err := client.SearchStream(ctx, sr)
@@ -32,7 +32,7 @@ func doSearch(ctx context.Context, client logspray.LogServiceClient) {
 
 	lastLabels := map[string]string{}
 	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
-		if *showLabels {
+		if showLabels {
 			if !reflect.DeepEqual(m.Labels, lastLabels) {
 				line := "--"
 				for k, v := range m.Labels {
