@@ -25,7 +25,7 @@ import (
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
-	uuid "github.com/satori/go.uuid"
+	"github.com/oklog/ulid"
 )
 
 // Shard represents a logging session.
@@ -85,7 +85,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 	if s.writeRaw {
 		rawf, ok = s.files[m.StreamID]
 		if !ok {
-			uid, _ := uuid.FromBytes([]byte(m.StreamID))
+			uid := ulid.MustParse(m.StreamID)
 			dir := filepath.Join(s.dataDir, shardKey, s.id)
 			rawfn := filepath.Join(dir, uid.String()+".log")
 
@@ -102,7 +102,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 	if s.writePB {
 		pbf, ok = s.pbfiles[m.StreamID]
 		if !ok {
-			uid, _ := uuid.FromBytes([]byte(m.StreamID))
+			uid := ulid.MustParse(m.StreamID)
 			dir := filepath.Join(s.dataDir, shardKey, s.id)
 			pbfn := filepath.Join(dir, uid.String()+".pb.log")
 
@@ -215,6 +215,8 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 	return fs
 }
 
+// Search this shard for queries between the provided time frames
+// for message matched by the provided match function.
 func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	if s == nil {
 		return nil
@@ -228,63 +230,3 @@ func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matche
 	}
 	return nil
 }
-
-/*
-func (s *Shard) messagesFromFiles(ctx context.Context, locs map[string][]uint64) ([]*logspray.Message, error) {
-	var msgs []*logspray.Message
-	if s == nil {
-    return msgs,nil
-	}
-
-	var msgs []*logspray.Message
-	for fn, offs := range locs {
-		fmsgs, err := s.messagesFromFile(ctx, fn, offs)
-		if err != nil {
-			return nil, err
-		}
-
-		msgs = append(msgs, fmsgs...)
-	}
-
-	return msgs, nil
-}
-
-func (s *Shard) messagesFromFile(ctx context.Context, fn string, offs []uint64) ([]*logspray.Message, error) {
-	var msgs []*logspray.Message
-	if s == nil {
-    return msgs,nil
-	}
-
-	f, err := os.Open(filepath.Join(s.dataDir, fn))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	// read the header
-	hmsg, err := readMessageFromFile(f, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to umarshal header proto %v:%v, %v", fn, 0, err)
-	}
-
-	for _, o := range offs {
-		msg := hmsg.Copy()
-		nmsg, err := readMessageFromFile(f, int64(o))
-		if err != nil {
-			glog.Errorf("failed to umarsharl proto %v:%v, %v", fn, o, err)
-			continue
-		}
-		msg.Time = nmsg.Time
-		msg.Index = nmsg.Index
-		msg.Text = nmsg.Text
-		msg.ControlMessage = nmsg.ControlMessage
-		for k, v := range nmsg.Labels {
-			msg.Labels[k] = v
-		}
-
-		msgs = append(msgs, msg)
-	}
-
-	return msgs, nil
-}
-*/

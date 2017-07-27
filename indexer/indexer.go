@@ -18,6 +18,7 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"sync"
 	"time"
@@ -25,8 +26,7 @@ import (
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
 	"github.com/QubitProducts/logspray/sinks"
-
-	uuid "github.com/satori/go.uuid"
+	"github.com/oklog/ulid"
 )
 
 // Indexer implements a queryable index for storage of logspray
@@ -59,7 +59,10 @@ type MessageWriter struct {
 
 // New creates a new index.
 func New(opts ...Opt) (*Indexer, error) {
-	id := uuid.NewV1().String()
+	t := time.Now()
+	entropy := rand.New(rand.NewSource(t.UnixNano()))
+	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
+
 	indx := &Indexer{
 		writeRaw:      true,
 		writePB:       true,

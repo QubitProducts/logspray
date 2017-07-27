@@ -18,7 +18,7 @@ package logspray
 import (
 	"fmt"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/oklog/ulid"
 )
 
 // Copy  copies a message into an existing message struct
@@ -49,7 +49,6 @@ func (m *Message) Copy() (tm *Message) {
 // ID Returns a unique string message ID for a message.
 // The StreamID and Index must be populated
 func (m *Message) ID() (string, error) {
-	idbs := []byte(m.StreamID)
-	id, err := uuid.FromBytes(idbs)
+	id, err := ulid.Parse(m.StreamID)
 	return fmt.Sprintf("%s-%d", id, m.Index), err
 }

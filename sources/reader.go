@@ -18,14 +18,15 @@ package sources
 import (
 	"context"
 	"io"
+	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/QubitProducts/logspray/sinks"
 	"github.com/cloudflare/backoff"
 	"github.com/golang/glog"
+	"github.com/oklog/ulid"
 	"github.com/prometheus/client_golang/prometheus"
-	uuid "github.com/satori/go.uuid"
 )
 
 var (
@@ -58,7 +59,11 @@ func init() {
 func ReadAllTargets(ctx context.Context, snk sinks.Sinker, src Sourcer) error {
 	var err error
 
-	targets := &targetSet{Sourcer: src}
+	targets := &targetSet{
+		Sourcer: src,
+		entropy: rand.New(rand.NewSource(time.Now().UnixNano())),
+	}
+
 	defer targets.cancelAll()
 
 	existing, err := src.Next(ctx)
@@ -103,9 +108,9 @@ func (ts *targetSet) addSource(ctx context.Context, snk sinks.Sinker, u *Update,
 		case <-ctx.Done():
 			return
 		default:
-			streamID := uuid.NewV1()
+			streamID := ulid.MustNew(ulid.Timestamp(time.Now()), ts.entropy)
 
-			w, err := snk.AddSource(string(streamID.Bytes()), u.Labels)
+			w, err := snk.AddSource(streamID.String(), u.Labels)
 			if err != nil {
 				if glog.V(2) {
 					glog.Errorf("addsource error: %#v , %v", *u, err)
@@ -169,6 +174,7 @@ func (ts *targetSet) readAllFromTarget(ctx context.Context, w sinks.MessageWrite
 type targetSet struct {
 	Sourcer
 	sinks.Sinker
+	entropy io.Reader
 
 	sync.Mutex
 	cfs map[string]context.CancelFunc
