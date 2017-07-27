@@ -25,18 +25,12 @@ spec:
         args:
           - server
           - -logtostderr
-          - -v
-          - "1"
-          - -tls.key
-          - /etc/logspray/ssl/key.pem
-          - -tls.cert
-          - /etc/logspray/ssl/cert.pem
-          - -tls.addr
-          - :10000
-          - -admin.addr
-          - :9999
-          - -index.dir
-          - /data
+          - -v=1
+          - --tls.key=/etc/logspray/ssl/key.pem
+          - --tls.cert=/etc/logspray/ssl/cert.pem
+          - --tls.addr=:10000
+          - --admin.addr=:9999
+          - --index.dir=/data
 {{- if .Values.jwtMetaDataURL }}
           - "-jws.key-url"
           - {{ .Values.jwtMetaDataURL }}

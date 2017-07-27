@@ -55,7 +55,7 @@ var (
 func init() {
 	root.RootCmd.AddCommand(clientCmd)
 
-	clientCmd.PersistentFlags().StringVar(&addr, "addr", "127.0.0.1:5000", "address of logserver")
+	clientCmd.PersistentFlags().StringVar(&addr, "addr", "127.0.0.1:10000", "address of logserver")
 
 	clientCmd.Flags().Var(&startTime, "start", "Start of search query time (default to now-1h)")
 	clientCmd.Flags().Var(&endTime, "end", "End of search query time (default to now")

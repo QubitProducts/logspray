@@ -26,20 +26,16 @@ spec:
         args:
           - reader
           - -logtostderr
-          - -server
-          - {{.Values.server}}
+          - --server={{.Values.server}}
 {{- if .Values.serviceJSONSecret }}
-          - -service
-          - /etc/logspray-reader/service.json
-          - -oauth2.token_url
-          - {{.Values.oauth2TokenURL}}
+          - --service=/etc/logspray-reader/service.json
+          - --oauth2.token_url={{.Values.oauth2TokenURL}}
 {{- end }}
 {{- if .Values.dnsServer }}
-          - -srv.ns
-          - {{.Values.dnsServer}}
+          - --srv.ns={{.Values.dnsServer}}
 {{- end }}
 {{- if .Values.tlsInsecure }}
-          - -tls.insecure
+          - --tls.insecure
 {{- end }}
         resources:
           limits:
