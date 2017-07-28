@@ -213,6 +213,11 @@ func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
 
 	err := json.Unmarshal(content, &jsonObj)
 
+	if err != nil {
+		return false
+	}
+
+	// Adding label using json keys
 	for k, v := range jsonObj {
 		switch v := v.(type) {
 		case string:
@@ -226,9 +231,13 @@ func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
 		}
 	}
 
+	// Indenting json for readability in laton
+	message, err := json.MarshalIndent(jsonObj, "", "\t")
 	if err != nil {
 		return false
 	}
+	m.Labels["__text__"] = string(message)
+
 	return true
 }
 
