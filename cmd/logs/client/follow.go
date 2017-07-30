@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -10,7 +9,7 @@ import (
 	"github.com/QubitProducts/logspray/proto/logspray"
 )
 
-func doFollow(ctx context.Context, client logspray.LogServiceClient) {
+func doFollow(ctx context.Context, client logspray.LogServiceClient, args []string) {
 	siglabels := map[string]bool{"job": true}
 	initial := true
 
@@ -28,7 +27,7 @@ Reconnect:
 			initial = false
 		}
 		tr := &logspray.TailRequest{
-			Query: strings.Join(flag.Args(), " "),
+			Query: strings.Join(args, " "),
 		}
 
 		cctx, cancel := context.WithCancel(ctx)

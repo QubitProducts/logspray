@@ -115,7 +115,7 @@ func (t *cliTime) Set(s string) error {
 	}
 }
 
-func run(*cobra.Command, []string) error {
+func run(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	dopts := []grpc.DialOption{}
@@ -155,11 +155,11 @@ func run(*cobra.Command, []string) error {
 
 	switch {
 	case follow:
-		doFollow(ctx, client)
+		doFollow(ctx, client, args)
 	case listLabels:
-		doListLabels(ctx, client)
+		doListLabels(ctx, client, args)
 	case search:
-		doSearch(ctx, client)
+		doSearch(ctx, client, args)
 	default:
 		fatalf("must pick an action")
 	}

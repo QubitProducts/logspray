@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -14,7 +13,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
-func doSearch(ctx context.Context, client logspray.LogServiceClient) {
+func doSearch(ctx context.Context, client logspray.LogServiceClient, args []string) {
 	st, _ := ptypes.TimestampProto(time.Time(startTime))
 	et, _ := ptypes.TimestampProto(time.Time(endTime))
 
@@ -22,7 +21,7 @@ func doSearch(ctx context.Context, client logspray.LogServiceClient) {
 		From:  st,
 		To:    et,
 		Count: count,
-		Query: strings.Join(flag.Args(), " "),
+		Query: strings.Join(args, " "),
 	}
 	res, err := client.SearchStream(ctx, sr)
 	if err != nil {

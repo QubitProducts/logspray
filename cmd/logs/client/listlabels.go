@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -11,11 +10,11 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
-func doListLabels(ctx context.Context, client logspray.LogServiceClient) {
+func doListLabels(ctx context.Context, client logspray.LogServiceClient, args []string) {
 	st, _ := ptypes.TimestampProto(time.Now().Add(-1 * time.Hour))
 	et, _ := ptypes.TimestampProto(time.Now())
 
-	if len(flag.Args()) == 0 {
+	if len(args) == 0 {
 		lr := &logspray.LabelsRequest{From: st, To: et}
 		res, err := client.Labels(ctx, lr)
 		if err != nil {
@@ -27,11 +26,11 @@ func doListLabels(ctx context.Context, client logspray.LogServiceClient) {
 		return
 	}
 
-	if len(flag.Args()) > 1 {
+	if len(args) > 1 {
 		return
 	}
 	lvr := &logspray.LabelValuesRequest{
-		Name:  flag.Args()[0],
+		Name:  args[0],
 		From:  st,
 		To:    et,
 		Count: int64(count),
