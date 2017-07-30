@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // ReadScope is the scope required for reading and searching logs.
@@ -166,7 +167,7 @@ func (l *logServer) ensureScope(ctx context.Context, rs string) error {
 
 	cs, ok := ClaimsFromContext(ctx)
 	if !ok {
-		return grpc.Errorf(codes.Unauthenticated, "no jwt claims found")
+		return status.Errorf(codes.Unauthenticated, "no jwt claims found")
 	}
 
 	for _, s := range strings.Split(cs.Scope, " ") {
@@ -174,5 +175,5 @@ func (l *logServer) ensureScope(ctx context.Context, rs string) error {
 			return nil
 		}
 	}
-	return grpc.Errorf(codes.Unauthenticated, "scope %s not present", rs)
+	return status.Errorf(codes.PermissionDenied, "scope %s not present", rs)
 }

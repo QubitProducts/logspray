@@ -69,7 +69,7 @@ func Compile(qstr string) (MatchFunc, error) {
 
 	qts, err := p.readQueryTerms()
 	if err != nil {
-		errors.Wrap(err, "failed ot read query")
+		return nil, errors.Wrap(err, "failed ot read query")
 	}
 
 	terms := []MatchFunc{}
@@ -77,12 +77,20 @@ func Compile(qstr string) (MatchFunc, error) {
 	labelMatches := map[string][]MatchFunc{}
 	for _, a := range qts {
 		currts := labelMatches[a.label]
-		mf, _ := makeLabelMatch(a.operator, a.label)
+		mf, err := makeLabelMatch(a.operator, a.label)
+		if err != nil {
+			return nil, err
+		}
+
 		labelMatches[a.label] = append(currts, mf)
 	}
 
 	for _, lqs := range labelMatches {
-		lq, _ := makeDisjunctionMatch(lqs...)
+		lq, err := makeDisjunctionMatch(lqs...)
+		if err != nil {
+			return nil, err
+		}
+
 		terms = append(terms, lq)
 	}
 

@@ -18,7 +18,9 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 
 	"github.com/Masterminds/sprig"
 	"github.com/golang/glog"
@@ -192,4 +194,20 @@ func usageFatalf(str string, vs ...interface{}) {
 	fmt.Fprintf(os.Stderr, str, vs...)
 	flag.Usage()
 	os.Exit(1)
+}
+
+func errRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch s.Code() {
+	case codes.DeadlineExceeded, codes.ResourceExhausted, codes.Unavailable:
+		return true
+	default:
+		return false
+	}
 }

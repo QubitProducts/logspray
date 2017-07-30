@@ -47,6 +47,10 @@ Reconnect:
 		newSigLabels := map[string]string{}
 		for {
 			m, err := cr.Recv()
+			if err != nil && !errRetryable(err) {
+				fatalf("non-retryable error, %v", err)
+				return
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "-- ERROR %v\n", err)
 				continue Reconnect

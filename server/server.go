@@ -21,6 +21,9 @@ import (
 	"io"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/QubitProducts/logspray/indexer"
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
@@ -241,7 +244,7 @@ func (l *logServer) Tail(r *logspray.TailRequest, s logspray.LogService_TailServ
 
 	matcher, err := ql.Compile(r.Query)
 	if err != nil {
-		return err
+		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	headers := map[string]*logspray.Message{}
@@ -358,7 +361,7 @@ func (l *logServer) Search(ctx context.Context, r *logspray.SearchRequest) (*log
 
 	matcher, err := ql.Compile(r.Query)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	count := r.Count
@@ -396,7 +399,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 
 	matcher, err := ql.Compile(r.Query)
 	if err != nil {
-		return err
+		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	count := r.Count

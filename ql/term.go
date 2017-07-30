@@ -77,6 +77,10 @@ func (p *Parser) readQueryTerm() (queryTerm, error) {
 	}
 
 	op, err := opb(rval)
+	if err != nil {
+		return queryTerm{}, err
+	}
+
 	return queryTerm{
 		label:    lval,
 		operator: op,
