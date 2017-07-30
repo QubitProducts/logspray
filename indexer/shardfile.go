@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
@@ -31,6 +32,19 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
 )
+
+// ShardFile represents an individual stream of data in a shard.
+type ShardFile struct {
+	writer io.WriteCloser
+	fn     string
+	pb     bool
+	id     string
+
+	sync.RWMutex
+	headersSent bool
+	labels      map[string]string
+	offset      int64
+}
 
 // Search searches the shard file for messages in the provided time range,
 // matched by matcher, and passes them to msgFunc. If the reverse is true the

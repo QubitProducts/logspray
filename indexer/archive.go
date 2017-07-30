@@ -17,12 +17,9 @@ package indexer
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +27,7 @@ import (
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/golang/glog"
+	"github.com/oklog/ulid"
 
 	"github.com/graymeta/stow"
 	_ "github.com/graymeta/stow/google"
@@ -64,7 +62,7 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 		}
 	}
 
-	// Search the dataDir and find all
+	// Search the dataDir and find all previous shards.
 	filepath.Walk(a.dataDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			glog.Errorf("failed walking archive datadir, %v", err)
@@ -75,35 +73,17 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 			return nil
 		}
 
-		utime, err := strconv.Atoi(filepath.Base(path))
+		uid, err := ulid.Parse(filepath.Base(path))
 		if err != nil {
+			glog.Errorf("failed walking archive dir, %v", err)
 			return filepath.SkipDir
 		}
 
-		t := time.Unix(int64(utime), 0)
-		indexDir := filepath.Join(path, "__INDEX__")
-		filepath.Walk(indexDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				glog.Errorf("failed walking archive index dir, %v", err)
-				return err
-			}
-			// Each one of these should be a bleve index.
-			if !info.IsDir() || indexDir == path {
-				return nil
-			}
-			if !strings.HasSuffix(path, ".bleve") {
-				return filepath.SkipDir
-			}
-
-			if _, ok := a.history[t]; !ok {
-				a.history[t] = nil
-			}
-			a.history[t] = append(a.history[t], &Shard{
-				shardStart: t,
-				dataDir:    filepath.Join(a.dataDir, fmt.Sprintf("%d", t.Unix())),
-			})
-
-			return filepath.SkipDir
+		glog.Infof("Adding %v to archive history", path)
+		t := time.Unix(0, int64(uid.Time()))
+		a.history[t] = append(a.history[t], &Shard{
+			shardStart: t,
+			dataDir:    path,
 		})
 		return filepath.SkipDir
 	})

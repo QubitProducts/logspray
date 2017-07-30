@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -32,7 +31,6 @@ import (
 // Indexer implements a queryable index for storage of logspray
 // mssages.
 type Indexer struct {
-	shardLabels   []string
 	shardDuration time.Duration
 	batchSize     uint
 	dataDir       string
@@ -53,7 +51,6 @@ type Opt func(i *Indexer) error
 type MessageWriter struct {
 	indx     *Indexer
 	streamID string
-	shardKey string
 	labels   map[string]string
 }
 
@@ -67,7 +64,6 @@ func New(opts ...Opt) (*Indexer, error) {
 		writeRaw:      true,
 		writePB:       true,
 		id:            id,
-		shardLabels:   []string{"job"},
 		shardDuration: time.Minute * 1,
 		dataDir:       "data",
 		batchSize:     250,
@@ -93,15 +89,6 @@ func New(opts ...Opt) (*Indexer, error) {
 func WithSharDuration(d time.Duration) Opt {
 	return func(i *Indexer) error {
 		i.shardDuration = d
-		return nil
-	}
-}
-
-// WithShardLabels allows you to set the labels to use to split out
-// serialised protobuf files.
-func WithShardLabels(ls []string) Opt {
-	return func(i *Indexer) error {
-		i.shardLabels = ls
 		return nil
 	}
 }
@@ -145,21 +132,11 @@ func (idx *Indexer) Close() error {
 	return nil
 }
 
-// AddSource adds a new source ot the remote server
+// AddSource adds a new source to the remote server
 func (idx *Indexer) AddSource(ctx context.Context, id string, labels map[string]string) (sinks.MessageWriter, error) {
-	shardKey := ""
-	for _, k := range idx.shardLabels {
-		skv, ok := labels[k]
-		if !ok {
-			skv = "unknown"
-		}
-		shardKey = filepath.Join(shardKey, skv)
-	}
-
 	return &MessageWriter{
-		indx:     idx,
-		shardKey: shardKey,
-		labels:   labels,
+		indx:   idx,
+		labels: labels,
 	}, nil
 }
 
@@ -200,7 +177,7 @@ func (w *MessageWriter) WriteMessage(ctx context.Context, m *logspray.Message) e
 
 	w.indx.RUnlock()
 
-	return shard.writeMessage(ctx, m, w.shardKey, w.labels)
+	return shard.writeMessage(ctx, m, w.labels)
 }
 
 // Close closes the remote stream.

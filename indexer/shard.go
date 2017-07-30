@@ -19,18 +19,22 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
+	"math/rand"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
+	"github.com/golang/glog"
 	"github.com/oklog/ulid"
 )
 
 // Shard represents a logging session.
 type Shard struct {
+	indexId    string
 	id         string
 	shardStart time.Time
 	dataDir    string
@@ -47,23 +51,14 @@ type Shard struct {
 	labelCache map[string]map[string]struct{}
 }
 
-// ShardFile tracks our offset into a protobuf serialisation.
-type ShardFile struct {
-	writer io.WriteCloser
-	fn     string
-	pb     bool
-	id     string
+func newShard(startTime time.Time, baseDir, indexId string, writeRaw, writePB bool) (*Shard, error) {
+	t := time.Now()
+	entropy := rand.New(rand.NewSource(t.UnixNano()))
+	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
 
-	sync.RWMutex
-	headersSent bool
-	labels      map[string]string
-	offset      int64
-}
-
-func newShard(startTime time.Time, baseDir, id string, writeRaw, writePB bool) (*Shard, error) {
-	dataDir := filepath.Join(baseDir, fmt.Sprintf("%d", startTime.Unix()))
 	return &Shard{
-		dataDir:    dataDir,
+		dataDir:    baseDir,
+		indexId:    indexId,
 		id:         id,
 		shardStart: startTime,
 		writePB:    writePB,
@@ -76,7 +71,7 @@ func newShard(startTime time.Time, baseDir, id string, writeRaw, writePB bool) (
 	}, nil
 }
 
-func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey string, labels map[string]string) error {
+func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, labels map[string]string) error {
 	// THere's a horrid mess of locking here that should be tidied
 	// up
 	s.filesLock.Lock()
@@ -93,7 +88,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 				uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
 			}
 
-			dir := filepath.Join(s.dataDir, shardKey, s.id)
+			dir := filepath.Join(s.dataDir, s.id)
 			rawfn := filepath.Join(dir, fmt.Sprintf("%s.log", uidStr))
 
 			rawf = &ShardFile{
@@ -115,7 +110,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 			} else {
 				uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
 			}
-			dir := filepath.Join(s.dataDir, shardKey, s.id)
+			dir := filepath.Join(s.dataDir, s.id)
 			pbfn := filepath.Join(dir, fmt.Sprintf("%s.pb.log", uidStr))
 
 			pbf = &ShardFile{
@@ -217,6 +212,35 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 	}
 
 	s.filesLock.Lock()
+
+	if s.pbfiles == nil {
+		s.pbfiles = make(map[string]*ShardFile)
+		filepath.Walk(s.dataDir, func(path string, info os.FileInfo, err error) error {
+			if path == s.dataDir {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+
+			if !strings.HasSuffix(path, ".pb.log") {
+				return nil
+			}
+			streamID := path[:len(path)-7]
+			_, err = ulid.Parse(streamID)
+			if err != nil {
+				glog.Infof("skipping shardFile, err = %v", err)
+				return nil
+			}
+
+			s.pbfiles[streamID] = &ShardFile{id: streamID}
+
+			return nil
+		})
+	}
 
 	for _, f := range s.pbfiles {
 		fs = append(fs, f)
