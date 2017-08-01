@@ -77,6 +77,9 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 				return errors.Wrapf(err, "failed to read message from %s", s.fn)
 			}
 
+			if nmsg.Time == nil {
+				continue
+			}
 			t, _ := ptypes.Timestamp(nmsg.Time)
 			if t.Before(from) || t.After(to) {
 				continue
