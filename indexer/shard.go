@@ -90,7 +90,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 			if uid, err := ulid.Parse(m.StreamID); err != nil {
 				uidStr = uid.String()
 			} else {
-				uidStr = base64.StdEncoding.EncodeToString(m.StreamID)
+				uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
 			}
 
 			dir := filepath.Join(s.dataDir, shardKey, s.id)
@@ -113,7 +113,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 			if uid, err := ulid.Parse(m.StreamID); err != nil {
 				uidStr = uid.String()
 			} else {
-				uidStr = base64.StdEncoding.EncodeToString(m.StreamID)
+				uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
 			}
 			dir := filepath.Join(s.dataDir, shardKey, s.id)
 			pbfn := filepath.Join(dir, fmt.Sprintf("%s.pb.log", uidStr))
