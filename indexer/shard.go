@@ -86,13 +86,15 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 	if s.writeRaw {
 		rawf, ok = s.files[m.StreamID]
 		if !ok {
-			uid, err := ulid.Parse(m.StreamID)
-			if err != nil {
-				uid = base64.StdEncoding.EncodeToString(m.StreamID)
+			uidStr := ""
+			if uid, err := ulid.Parse(m.StreamID); err != nil {
+				uidStr = uid.String()
+			} else {
+				uidStr = base64.StdEncoding.EncodeToString(m.StreamID)
 			}
 
 			dir := filepath.Join(s.dataDir, shardKey, s.id)
-			rawfn := filepath.Join(dir, uid.String()+".log")
+			rawfn := filepath.Join(dir, fmt.Sprintf("%s.log", uidStr))
 
 			rawf = &ShardFile{
 				fn:     rawfn,
@@ -107,12 +109,14 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, shardKey 
 	if s.writePB {
 		pbf, ok = s.pbfiles[m.StreamID]
 		if !ok {
-			uid, err := ulid.Parse(m.StreamID)
-			if err != nil {
-				uid = base64.StdEncoding.EncodeToString(m.StreamID)
+			uidStr := ""
+			if uid, err := ulid.Parse(m.StreamID); err != nil {
+				uidStr = uid.String()
+			} else {
+				uidStr = base64.StdEncoding.EncodeToString(m.StreamID)
 			}
 			dir := filepath.Join(s.dataDir, shardKey, s.id)
-			pbfn := filepath.Join(dir, uid.String()+".pb.log")
+			pbfn := filepath.Join(dir, fmt.Sprintf("%s.pb.log", uidStr))
 
 			pbf = &ShardFile{
 				fn:     pbfn,
