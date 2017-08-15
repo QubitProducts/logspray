@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/QubitProducts/logspray/common"
 	"github.com/QubitProducts/logspray/indexer"
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
@@ -136,7 +137,7 @@ func WithGrafanaBasicAuth(user, pass string) serverOpt {
 }
 
 func (l *logServer) Log(ctx context.Context, r *logspray.Message) (*logspray.LogSummary, error) {
-	if err := l.ensureScope(ctx, WriteScope); err != nil {
+	if err := l.ensureScope(ctx, common.WriteScope); err != nil {
 		return nil, err
 	}
 	l.subs.publish(nil, r)
@@ -153,7 +154,7 @@ func (l *logServer) LogStream(s logspray.LogService_LogStreamServer) error {
 	defer sourcesGauge.Sub(1.0)
 
 	var err error
-	if err := l.ensureScope(s.Context(), WriteScope); err != nil {
+	if err := l.ensureScope(s.Context(), common.WriteScope); err != nil {
 		return err
 	}
 
@@ -225,7 +226,7 @@ func (l *logServer) LogStream(s logspray.LogService_LogStreamServer) error {
 func (l *logServer) Tail(r *logspray.TailRequest, s logspray.LogService_TailServer) error {
 	ctx := s.Context()
 
-	if err := l.ensureScope(ctx, ReadScope); err != nil {
+	if err := l.ensureScope(ctx, common.ReadScope); err != nil {
 		return err
 	}
 
@@ -312,7 +313,7 @@ func (l *logServer) Tail(r *logspray.TailRequest, s logspray.LogService_TailServ
 
 func (l *logServer) Labels(ctx context.Context, r *logspray.LabelsRequest) (*logspray.LabelsResponse, error) {
 	var err error
-	if err = l.ensureScope(ctx, ReadScope); err != nil {
+	if err = l.ensureScope(ctx, common.ReadScope); err != nil {
 		return nil, err
 	}
 
@@ -329,7 +330,7 @@ func (l *logServer) Labels(ctx context.Context, r *logspray.LabelsRequest) (*log
 
 func (l *logServer) LabelValues(ctx context.Context, r *logspray.LabelValuesRequest) (*logspray.LabelValuesResponse, error) {
 	var err error
-	if err = l.ensureScope(ctx, ReadScope); err != nil {
+	if err = l.ensureScope(ctx, common.ReadScope); err != nil {
 		return nil, err
 	}
 
@@ -351,7 +352,7 @@ func (l *logServer) Search(ctx context.Context, r *logspray.SearchRequest) (*log
 	ctx, cancel := context.WithCancel(ctx)
 
 	var err error
-	if err = l.ensureScope(ctx, ReadScope); err != nil {
+	if err = l.ensureScope(ctx, common.ReadScope); err != nil {
 		return nil, err
 	}
 	from, to, err := getRange(r)
@@ -388,7 +389,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 	ctx := s.Context()
 	ctx, cancel := context.WithCancel(ctx)
 
-	if err := l.ensureScope(ctx, ReadScope); err != nil {
+	if err := l.ensureScope(ctx, common.ReadScope); err != nil {
 		return err
 	}
 
