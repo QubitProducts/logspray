@@ -78,7 +78,7 @@ func init() {
 
 var readerCmd = &cobra.Command{
 	Use:   "reader",
-	Short: "reader collects logs and publishes them to a client",
+	Short: "reader collects logs and publishes them to a server",
 	Long: `This is an example log rader, it can collect logs from files
 	and docker containers. re-labeling rules can be used to rewrite message
 	and decorate them with labels`,
