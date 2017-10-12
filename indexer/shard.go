@@ -212,6 +212,7 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 	}
 
 	s.filesLock.Lock()
+	defer s.filesLock.Unlock()
 
 	if s.pbfiles == nil {
 		s.pbfiles = make(map[string]*ShardFile)
@@ -245,8 +246,6 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 	for _, f := range s.pbfiles {
 		fs = append(fs, f)
 	}
-
-	s.filesLock.Unlock()
 
 	return fs
 }

@@ -54,10 +54,10 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 	defer s.RUnlock()
 
 	r, err := os.Open(s.fn)
-	defer r.Close()
 	if err != nil {
 		return errors.Wrapf(err, "failed to read file %s", s.fn)
 	}
+	defer r.Close()
 
 	hdr, err := readMessageFromFile(r)
 	if err != nil {
@@ -98,8 +98,10 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 			if t.Before(from) || t.After(to) {
 				continue
 			}
-			if !matcher(hdr, nmsg) {
-				continue
+			if matcher != nil {
+				if !matcher(hdr, nmsg) {
+					continue
+				}
 			}
 			if offset > 0 {
 				offset--

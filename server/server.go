@@ -410,8 +410,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 			cancel()
 		}
 
-		err := s.Send(m)
-		return err
+		return s.Send(m)
 	})
 
 	err = l.indx.Search(ctx, msgFunc, matcher, from, to, r.Count, r.Offset, r.Reverse)
