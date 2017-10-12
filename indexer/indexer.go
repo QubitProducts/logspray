@@ -34,8 +34,6 @@ type Indexer struct {
 	shardDuration time.Duration
 	batchSize     uint
 	dataDir       string
-	writeRaw      bool
-	writePB       bool
 
 	id string
 
@@ -61,8 +59,6 @@ func New(opts ...Opt) (*Indexer, error) {
 	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
 
 	indx := &Indexer{
-		writeRaw:      true,
-		writePB:       true,
 		id:            id,
 		shardDuration: time.Minute * 1,
 		dataDir:       "data",
@@ -97,23 +93,6 @@ func WithSharDuration(d time.Duration) Opt {
 func WithBatchSize(sz uint) Opt {
 	return func(i *Indexer) error {
 		i.batchSize = sz
-		return nil
-	}
-}
-
-// WithWriteRaw allows you to turn on/off writing of raw text log
-// streams.
-func WithWriteRaw(b bool) Opt {
-	return func(i *Indexer) error {
-		i.writeRaw = b
-		return nil
-	}
-}
-
-// WithWritePB lets you disable writing of protobuf files.
-func WithWritePB(b bool) Opt {
-	return func(i *Indexer) error {
-		i.writePB = b
 		return nil
 	}
 }
@@ -155,8 +134,6 @@ func (w *MessageWriter) WriteMessage(ctx context.Context, m *logspray.Message) e
 			shardStart,
 			w.indx.dataDir,
 			w.indx.id,
-			w.indx.writeRaw,
-			w.indx.writePB,
 		)
 		if err != nil {
 			w.indx.Unlock()

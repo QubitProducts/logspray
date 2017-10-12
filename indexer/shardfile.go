@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,12 +32,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+type readWriteAtCloser interface {
+	io.WriterAt
+	io.ReaderAt
+	io.Closer
+}
+
 // ShardFile represents an individual stream of data in a shard.
 type ShardFile struct {
-	writer io.WriteCloser
-	fn     string
-	pb     bool
-	id     string
+	file readWriteAtCloser
+	fn   string
+	id   string
 
 	sync.RWMutex
 	headersSent bool
@@ -51,15 +55,14 @@ type ShardFile struct {
 // file will be searched in reverse order
 func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	s.RLock()
-	defer s.RUnlock()
-
-	r, err := os.Open(s.fn)
-	if err != nil {
-		return errors.Wrapf(err, "failed to read file %s", s.fn)
+	if s.file == nil {
+		s.RUnlock()
+		return nil
 	}
-	defer r.Close()
+	sr := io.NewSectionReader(s.file, 0, s.offset)
+	s.RUnlock()
 
-	hdr, err := readMessageFromFile(r)
+	hdr, err := readMessageFromFile(sr)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read file header %s", s.fn)
 	}
@@ -68,7 +71,7 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 		return err
 	}
 	if reverse {
-		r.Seek(0, io.SeekEnd)
+		sr.Seek(0, io.SeekEnd)
 	}
 
 	for {
@@ -79,9 +82,9 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 			var nmsg *logspray.Message
 			var err error
 			if !reverse {
-				nmsg, err = readMessageFromFile(r)
+				nmsg, err = readMessageFromFile(sr)
 			} else {
-				nmsg, err = readMessageFromFileEnd(r)
+				nmsg, err = readMessageFromFileEnd(sr)
 			}
 
 			if err == io.EOF {
@@ -121,36 +124,28 @@ func (s *ShardFile) writeMessageToFile(ctx context.Context, m *logspray.Message)
 	defer s.Unlock()
 	var err error
 
-	if s.writer == nil {
+	if s.file == nil {
 		dir := filepath.Dir(s.fn)
 		err := os.MkdirAll(dir, 0777)
-		s.writer, err = os.Create(s.fn)
+		newWriter, err := os.Create(s.fn)
 		if err != nil {
 			return err
 		}
-		if s.pb {
-			hm := &logspray.Message{
-				ControlMessage: logspray.Message_SETHEADER,
-				StreamID:       m.StreamID,
-				Time:           m.Time,
-				Labels:         s.labels,
-			}
-			sz, err := writePBMessageToFile(s.writer, hm)
-			if err != nil {
-				s.writer = nil
-				return errors.Wrapf(err, "failed writing file header")
-			}
-			s.offset += int64(sz)
+		hm := &logspray.Message{
+			ControlMessage: logspray.Message_SETHEADER,
+			StreamID:       m.StreamID,
+			Time:           m.Time,
+			Labels:         s.labels,
 		}
+		sz, err := writePBMessageToFile(newWriter, 0, hm)
+		if err != nil {
+			return errors.Wrapf(err, "failed writing file header")
+		}
+		s.file = newWriter
+		s.offset = int64(sz)
 	}
 
-	if !s.pb {
-		mt, _ := ptypes.Timestamp(m.Time)
-		_, err = fmt.Fprintf(s.writer, "%s %s\n", mt.Format(time.RFC3339Nano), m.Text)
-		return errors.Wrapf(err, "failed writing raw file %s", s.fn)
-	}
-
-	sz, err := writePBMessageToFile(s.writer, m)
+	sz, err := writePBMessageToFile(s.file, s.offset, m)
 	if err != nil {
 		return errors.Wrapf(err, "failed writing to %s", s.fn)
 	}
@@ -159,7 +154,10 @@ func (s *ShardFile) writeMessageToFile(ctx context.Context, m *logspray.Message)
 	return err
 }
 
-func writePBMessageToFile(w io.Writer, msg *logspray.Message) (uint32, error) {
+func writePBMessageToFile(w io.WriterAt, offset int64, msg *logspray.Message) (uint32, error) {
+	if w == nil {
+		return 0, nil
+	}
 	bs, err := proto.Marshal(msg)
 	if err != nil {
 		return 0, errors.Wrap(err, "marshal protobuf failed")
@@ -176,15 +174,15 @@ func writePBMessageToFile(w io.Writer, msg *logspray.Message) (uint32, error) {
 	buf.Write(bs)
 	binary.Write(buf, binary.LittleEndian, uint16(len(bs)))
 
-	n, err := w.Write(buf.Bytes())
+	n, err := w.WriteAt(buf.Bytes(), offset)
 	if n != len(buf.Bytes()) || err != nil {
 		return 0, errors.Wrap(err, "write pb to file failed")
 	}
 
-	return uint32(len(buf.Bytes())), nil
+	return uint32(n), nil
 }
 
-func readMessageFromFile(r io.Reader) (*logspray.Message, error) {
+func readMessageFromFile(r *io.SectionReader) (*logspray.Message, error) {
 	szbs := make([]byte, 2)
 	szbuf := bytes.NewBuffer(szbs)
 	n, err := r.Read(szbs)
@@ -239,7 +237,7 @@ func readMessageFromFile(r io.Reader) (*logspray.Message, error) {
 
 // readMessageFromFileEnd tries to read a message before the current position
 // of the io.ReadSeeker
-func readMessageFromFileEnd(r io.ReadSeeker) (*logspray.Message, error) {
+func readMessageFromFileEnd(r *io.SectionReader) (*logspray.Message, error) {
 	if off, _ := r.Seek(0, io.SeekCurrent); off == 0 {
 		return nil, io.EOF
 	}
@@ -281,4 +279,12 @@ func readMessageFromFileEnd(r io.ReadSeeker) (*logspray.Message, error) {
 	_, err = r.Seek(start, io.SeekStart)
 
 	return msg, nil
+}
+
+// Close the backing files for a shard
+func (s *ShardFile) Close() error {
+	if s.file != nil {
+		return s.file.Close()
+	}
+	return nil
 }

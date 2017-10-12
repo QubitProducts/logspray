@@ -42,16 +42,12 @@ type Shard struct {
 
 	filesLock sync.Mutex
 	files     map[string]*ShardFile
-	pbfiles   map[string]*ShardFile
-
-	writeRaw bool
-	writePB  bool
 
 	cacheLock  sync.Mutex
 	labelCache map[string]map[string]struct{}
 }
 
-func newShard(startTime time.Time, baseDir, indexId string, writeRaw, writePB bool) (*Shard, error) {
+func newShard(startTime time.Time, baseDir, indexId string) (*Shard, error) {
 	t := time.Now()
 	entropy := rand.New(rand.NewSource(t.UnixNano()))
 	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
@@ -61,11 +57,8 @@ func newShard(startTime time.Time, baseDir, indexId string, writeRaw, writePB bo
 		indexId:    indexId,
 		id:         id,
 		shardStart: startTime,
-		writePB:    writePB,
-		writeRaw:   writeRaw,
 
-		files:   map[string]*ShardFile{},
-		pbfiles: map[string]*ShardFile{},
+		files: map[string]*ShardFile{},
 
 		labelCache: map[string]map[string]struct{}{},
 	}, nil
@@ -77,50 +70,24 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, labels ma
 	s.filesLock.Lock()
 
 	var ok bool
-	var rawf *ShardFile
-	if s.writeRaw {
-		rawf, ok = s.files[m.StreamID]
-		if !ok {
-			uidStr := ""
-			if uid, err := ulid.Parse(m.StreamID); err != nil {
-				uidStr = uid.String()
-			} else {
-				uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
-			}
-
-			dir := filepath.Join(s.dataDir, s.id)
-			rawfn := filepath.Join(dir, fmt.Sprintf("%s.log", uidStr))
-
-			rawf = &ShardFile{
-				fn:     rawfn,
-				offset: 0,
-				pb:     false,
-			}
-			s.files[m.StreamID] = rawf
-		}
-	}
-
 	var pbf *ShardFile
-	if s.writePB {
-		pbf, ok = s.pbfiles[m.StreamID]
-		if !ok {
-			uidStr := ""
-			if uid, err := ulid.Parse(m.StreamID); err != nil {
-				uidStr = uid.String()
-			} else {
-				uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
-			}
-			dir := filepath.Join(s.dataDir, s.id)
-			pbfn := filepath.Join(dir, fmt.Sprintf("%s.pb.log", uidStr))
-
-			pbf = &ShardFile{
-				fn:     pbfn,
-				pb:     true,
-				id:     m.StreamID,
-				labels: labels,
-			}
-			s.pbfiles[m.StreamID] = pbf
+	pbf, ok = s.files[m.StreamID]
+	if !ok {
+		uidStr := ""
+		if uid, err := ulid.Parse(m.StreamID); err != nil {
+			uidStr = uid.String()
+		} else {
+			uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
 		}
+		dir := filepath.Join(s.dataDir, s.id)
+		pbfn := filepath.Join(dir, fmt.Sprintf("%s.pb.log", uidStr))
+
+		pbf = &ShardFile{
+			fn:     pbfn,
+			id:     m.StreamID,
+			labels: labels,
+		}
+		s.files[m.StreamID] = pbf
 	}
 
 	/* update labels cache */
@@ -149,15 +116,9 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, labels ma
 	s.filesLock.Unlock()
 
 	var err error
-	if s.writePB {
-		err = pbf.writeMessageToFile(ctx, m)
-		if err != nil {
-			return err
-		}
-	}
-
-	if s.writeRaw {
-		err = rawf.writeMessageToFile(ctx, m)
+	err = pbf.writeMessageToFile(ctx, m)
+	if err != nil {
+		return err
 	}
 
 	return err
@@ -169,10 +130,7 @@ func (s *Shard) close() {
 
 	s.labelCache = nil
 	for fs := range s.files {
-		s.files[fs].writer.Close()
-	}
-	for fs := range s.pbfiles {
-		s.pbfiles[fs].writer.Close()
+		s.files[fs].Close()
 	}
 }
 
@@ -214,8 +172,8 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 	s.filesLock.Lock()
 	defer s.filesLock.Unlock()
 
-	if s.pbfiles == nil {
-		s.pbfiles = make(map[string]*ShardFile)
+	if s.files == nil {
+		s.files = make(map[string]*ShardFile)
 		filepath.Walk(s.dataDir, func(path string, info os.FileInfo, err error) error {
 			if path == s.dataDir {
 				return nil
@@ -237,13 +195,13 @@ func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
 				return nil
 			}
 
-			s.pbfiles[streamID] = &ShardFile{id: streamID}
+			s.files[streamID] = &ShardFile{id: streamID}
 
 			return nil
 		})
 	}
 
-	for _, f := range s.pbfiles {
+	for _, f := range s.files {
 		fs = append(fs, f)
 	}
 
