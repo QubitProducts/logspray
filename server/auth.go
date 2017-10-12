@@ -51,7 +51,7 @@ func MakeAuthUnaryInterceptor(kf keysFunc) func(ctx context.Context, req interfa
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		md, _ := metadata.FromContext(ctx)
+		md, _ := metadata.FromIncomingContext(ctx)
 		jst, ok := md["authorization"]
 		if !ok && len(jst) != 1 {
 			return handler(ctx, req)
@@ -108,7 +108,7 @@ func MakeAuthStreamingInterceptor(kf keysFunc) func(srv interface{}, stream grpc
 		handler grpc.StreamHandler,
 	) error {
 		newStream := grpc_middleware.WrapServerStream(stream)
-		md, _ := metadata.FromContext(newStream.WrappedContext)
+		md, _ := metadata.FromIncomingContext(newStream.WrappedContext)
 
 		jst, ok := md["authorization"]
 		if !ok && len(jst) != 1 {

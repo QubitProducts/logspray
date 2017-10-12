@@ -7,16 +7,27 @@ all: protoc server
 
 protoc: proto/logspray/log.pb.go proto/logspray/log.pb.gw.go
 
-log.pb.go: proto/logspray/log.proto
-	protoc -I/usr/local/include -I. -I$$GOPATH/src -I$$GOPATH/src/github.com/golang/protobuf/ptypes -I$$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --go_out=Mgoogle/api/annotations.proto=github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis/google/api,plugins=grpc:. proto/logspray/log.proto
-log.pb.gw.go: proto/logspray/log.proto
-	protoc -I/usr/local/include -I. -I$$GOPATH/src -I$$GOPATH/src/github.com/golang/protobuf/ptypes -I$$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --grpc-gateway_out=logtostderr=true:. proto/logspray/log.proto
+proto/logspray/log.pb.go: proto/logspray/log.proto
+	protoc -I/usr/local/include \
+		     -I. \
+				 -I$$GOPATH/src \
+				 -I$$GOPATH/src/github.com/golang/protobuf/ptypes \
+				 -I$$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+				 --go_out=plugins=grpc:. proto/logspray/log.proto
+
+proto/logspray/log.pb.gw.go: proto/logspray/log.proto
+	protoc -I/usr/local/include \
+		     -I. \
+				 -I$$GOPATH/src \
+				 -I$$GOPATH/src/github.com/golang/protobuf/ptypes \
+				 -I$$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+				 --grpc-gateway_out=logtostderr=true:. proto/logspray/log.proto
 
 server: protoc
 	$(MAKE) -C server/
 
 clean:
-	rm log.pb.go log.pb.gw.go
+	rm -f proto/logspray/log.pb.go proto/logspray/log.pb.gw.go
 
 build-docker-binary: logs
 
