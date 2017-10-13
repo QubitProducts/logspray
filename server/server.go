@@ -18,7 +18,6 @@ package server
 import (
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -162,8 +161,12 @@ func (l *logServer) LogStream(s logspray.LogService_LogStreamServer) error {
 
 	if glog.V(1) {
 		glog.Info("New Log stream arriving")
-		defer glog.Info("Log stream ended: err = %v", err)
 	}
+	defer func() {
+		if err != nil && err != context.Canceled {
+			glog.Info("Log stream ended: err = %v", err)
+		}
+	}()
 
 	var iw sinks.MessageWriter
 	for {
@@ -219,7 +222,10 @@ func (l *logServer) LogStream(s logspray.LogService_LogStreamServer) error {
 
 		l.subs.publish(hdr, m)
 
-		iw.WriteMessage(s.Context(), m)
+		err = iw.WriteMessage(s.Context(), m)
+		if err != nil {
+			glog.Errorf("Error adding index source, err = %v\n", err)
+		}
 	}
 }
 
@@ -305,8 +311,11 @@ func (l *logServer) Tail(r *logspray.TailRequest, s logspray.LogService_TailServ
 				return err
 			}
 		case <-ctx.Done():
-			glog.Errorf("Tail Context closed = %v", ctx.Err())
-			return io.EOF
+			if err != nil && err != context.Canceled {
+				glog.Errorf("Tail Context closed = %v", ctx.Err())
+				return err
+			}
+			return nil
 		}
 	}
 }
