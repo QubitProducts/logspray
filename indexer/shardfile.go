@@ -40,27 +40,48 @@ type readWriteAtCloser interface {
 
 // ShardFile represents an individual stream of data in a shard.
 type ShardFile struct {
-	file readWriteAtCloser
-	fn   string
-	id   string
+	fn string
+	id string
 
 	sync.RWMutex
+	file        readWriteAtCloser // file used wh
 	headersSent bool
 	labels      map[string]string
-	offset      int64
+	offset      int64 // This is the current end of the file
 }
 
 // Search searches the shard file for messages in the provided time range,
 // matched by matcher, and passes them to msgFunc. If the reverse is true the
 // file will be searched in reverse order
 func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
-	s.RLock()
-	if s.file == nil {
+	var sr *io.SectionReader
+	if s.file != nil { // this is an active shard file
+		s.RLock()
+		sr = io.NewSectionReader(s.file, 0, s.offset)
 		s.RUnlock()
-		return nil
+	} else { // this is an archived shard file
+		s.Lock()
+		file, err := os.Open(s.fn)
+		if err != nil {
+			s.Unlock()
+			return err
+		}
+		defer file.Close()
+		if s.offset == 0 {
+			s.offset, err = file.Seek(0, io.SeekEnd)
+			if err != nil {
+				s.Unlock()
+				return err
+			}
+			_, err = file.Seek(0, io.SeekStart)
+			if err != nil {
+				s.Unlock()
+				return err
+			}
+		}
+		sr = io.NewSectionReader(file, 0, s.offset)
+		s.Unlock()
 	}
-	sr := io.NewSectionReader(s.file, 0, s.offset)
-	s.RUnlock()
 
 	hdr, err := readMessageFromFile(sr)
 	if err != nil {

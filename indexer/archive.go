@@ -26,6 +26,7 @@ import (
 	"golang.org/x/crypto/openpgp"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
+	"github.com/QubitProducts/logspray/ql"
 	"github.com/golang/glog"
 	"github.com/oklog/ulid"
 
@@ -151,11 +152,11 @@ func (sa *shardArchive) Add(s *Shard) {
 	sa.historyOrder = ts
 }
 
-func (sa *shardArchive) findShards(from, to time.Time) [][]*Shard {
+func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 	sa.RLock()
 	defer sa.RUnlock()
 
-	var qs [][]*Shard
+	var qs []shardSet
 
 	for i := len(sa.historyOrder) - 1; i >= 0; i-- {
 		t := sa.historyOrder[i]
@@ -172,21 +173,14 @@ func (sa *shardArchive) findShards(from, to time.Time) [][]*Shard {
 	return qs
 }
 
-func (sa *shardArchive) searchShards(ctx context.Context, query string, from, to time.Time, count, offset int) ([]*logspray.Message, uint64, error) {
+func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	foundShardSets := sa.findShards(from, to)
 
-	var hitCount uint64
-	var msgs []*logspray.Message
 	for _, shardSet := range foundShardSets {
 		for _, ss := range shardSet {
-			if to.After(ss.shardStart) {
-				//Relevant message
-			}
-			if !from.Before(ss.shardStart) {
-				break
-			}
+			ss.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
 		}
 	}
 
-	return msgs, hitCount, nil
+	return nil
 }

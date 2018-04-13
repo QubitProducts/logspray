@@ -184,5 +184,15 @@ func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 	s := idx.activeShard
 	idx.RUnlock()
 
-	return s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+	err := s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+	if err != nil {
+		return err
+	}
+
+	err = idx.archive.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
