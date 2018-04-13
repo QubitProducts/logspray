@@ -14,6 +14,7 @@
 package root
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -21,6 +22,7 @@ import (
 )
 
 func init() {
+	RootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 }
 
 var cfgFile string
