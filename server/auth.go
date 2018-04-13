@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
-	"github.com/mwitkow/go-grpc-middleware"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"golang.org/x/oauth2/jws"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
