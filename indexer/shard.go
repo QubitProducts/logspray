@@ -37,8 +37,8 @@ type Shard struct {
 	indexId    string
 	id         string
 	shardStart time.Time
+	shardEnd   time.Time
 	dataDir    string
-	batchSize  uint
 
 	filesLock sync.Mutex
 	files     map[string]*ShardFile

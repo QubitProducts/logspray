@@ -79,7 +79,7 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 			return filepath.SkipDir
 		}
 
-		glog.Infof("Adding %v to archive history", path)
+		glog.V(2).Infof("Adding %v to archive history", path)
 		t := time.Unix(0, int64(uid.Time()))
 		a.history[t] = append(a.history[t], &Shard{
 			shardStart: t,

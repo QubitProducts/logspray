@@ -32,7 +32,6 @@ import (
 // mssages.
 type Indexer struct {
 	shardDuration time.Duration
-	batchSize     uint
 	dataDir       string
 
 	id string
@@ -62,7 +61,6 @@ func New(opts ...Opt) (*Indexer, error) {
 		id:            id,
 		shardDuration: time.Minute * 1,
 		dataDir:       "data",
-		batchSize:     250,
 	}
 
 	for _, o := range opts {
@@ -85,14 +83,6 @@ func New(opts ...Opt) (*Indexer, error) {
 func WithSharDuration(d time.Duration) Opt {
 	return func(i *Indexer) error {
 		i.shardDuration = d
-		return nil
-	}
-}
-
-// WithBatchSize lets you set the size of batch writes to the index.
-func WithBatchSize(sz uint) Opt {
-	return func(i *Indexer) error {
-		i.batchSize = sz
 		return nil
 	}
 }

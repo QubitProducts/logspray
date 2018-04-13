@@ -63,7 +63,6 @@ var (
 
 	indexDir      string
 	shardDuration time.Duration
-	batchSize     int
 
 	grafanaBasicAuthUser string
 	grafanaBasicAuthPass string
@@ -84,7 +83,6 @@ func init() {
 
 	serverCmd.Flags().StringVar(&indexDir, "index.dir", "data", "Directory to store the index data in")
 	serverCmd.Flags().DurationVar(&shardDuration, "index.shard-duration", 15*time.Minute, "Length of eacch index shard")
-	serverCmd.Flags().IntVar(&batchSize, "index.batch-size", 250, "Size of batches sent to the index")
 
 	serverCmd.Flags().StringVar(&grafanaBasicAuthUser, "grafana.user", os.Getenv("GRAFANA_BASICAUTH_USER"), "User for grafana simplejson basic auth")
 	serverCmd.Flags().StringVar(&grafanaBasicAuthPass, "grafana.pass", os.Getenv("GRAFANA_BASICAUTH_PASS"), "Password for grafana simplejson basic auth")
@@ -217,7 +215,6 @@ func run(*cobra.Command, []string) error {
 		indx, err = indexer.New(
 			indexer.WithDataDir(indexDir),
 			indexer.WithSharDuration(shardDuration),
-			indexer.WithBatchSize(uint(batchSize)),
 		)
 		if err != nil {
 			glog.Fatalf("Unable to create index, err = %v", err)
