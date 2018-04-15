@@ -131,7 +131,10 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 				offset--
 				continue
 			}
-			msgFunc(nmsg)
+			err = msgFunc(nmsg)
+			if err != nil {
+				return err
+			}
 			count--
 			if count == 0 {
 				return nil

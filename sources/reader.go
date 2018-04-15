@@ -108,7 +108,7 @@ func (ts *targetSet) addSource(ctx context.Context, snk sinks.Sinker, u *Update,
 		case <-ctx.Done():
 			return
 		default:
-			streamID := ulid.MustNew(ulid.Timestamp(time.Now()), ts.entropy)
+			streamID := ulid.MustNew(ulid.Now(), ts.entropy)
 
 			w, err := snk.AddSource(streamID.String(), u.Labels)
 			if err != nil {

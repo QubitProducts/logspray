@@ -377,13 +377,14 @@ func (l *logServer) Search(ctx context.Context, r *logspray.SearchRequest) (*log
 	count := r.Count
 	res := &logspray.SearchResponse{}
 	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
-		count--
-		if count == 0 {
-			cancel()
-		}
-
 		res.TotalHitCount++
 		res.Messages = append(res.Messages, m)
+		if m.ControlMessage == 0 {
+			count--
+			if count == 0 {
+				cancel()
+			}
+		}
 		return nil
 	})
 	err = l.indx.Search(ctx, msgFunc, matcher, from, to, r.Count, r.Offset, r.Reverse)
@@ -414,12 +415,17 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 
 	count := r.Count
 	msgFunc := logspray.MakeInjectStreamHeadersFunc(func(m *logspray.Message) error {
-		count--
-		if count == 0 {
-			cancel()
+		if err := s.Send(m); err != nil {
+			return err
 		}
 
-		return s.Send(m)
+		if m.ControlMessage == 0 {
+			count--
+			if count == 0 {
+				cancel()
+			}
+		}
+		return nil
 	})
 
 	err = l.indx.Search(ctx, msgFunc, matcher, from, to, r.Count, r.Offset, r.Reverse)

@@ -31,9 +31,9 @@ import (
 	"github.com/oklog/ulid"
 
 	"github.com/graymeta/stow"
-	_ "github.com/graymeta/stow/google"
-	_ "github.com/graymeta/stow/local"
-	_ "github.com/graymeta/stow/s3"
+	//_ "github.com/graymeta/stow/google"
+	//_ "github.com/graymeta/stow/local"
+	//_ "github.com/graymeta/stow/s3"
 )
 
 type shardArchive struct {
@@ -81,7 +81,7 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 		}
 
 		glog.V(2).Infof("Adding %v to archive history", path)
-		t := time.Unix(0, int64(uid.Time()))
+		t := time.Unix(0, int64(uint64(time.Millisecond)*uid.Time()))
 		a.history[t] = append(a.history[t], &Shard{
 			shardStart: t,
 			dataDir:    path,
@@ -158,7 +158,8 @@ func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 
 	var qs []shardSet
 
-	for i := len(sa.historyOrder) - 1; i >= 0; i-- {
+	//for i := len(sa.historyOrder) - 1; i >= 0; i-- {
+	for i := 0; i < len(sa.historyOrder); i++ {
 		t := sa.historyOrder[i]
 		if !t.Before(to) {
 			continue
@@ -178,7 +179,9 @@ func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc
 
 	for _, shardSet := range foundShardSets {
 		for _, ss := range shardSet {
-			ss.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+			if err := ss.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse); err != nil {
+				return err
+			}
 		}
 	}
 
