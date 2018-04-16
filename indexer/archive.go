@@ -63,6 +63,7 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 		}
 	}
 
+	var shards []*Shard
 	// Search the dataDir and find all previous shards.
 	filepath.Walk(a.dataDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -82,19 +83,14 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 
 		glog.V(2).Infof("Adding %v to archive history", path)
 		t := time.Unix(0, int64(uint64(time.Millisecond)*uid.Time()))
-		a.history[t] = append(a.history[t], &Shard{
+		shards = append(shards, &Shard{
 			shardStart: t,
 			dataDir:    path,
 		})
 		return filepath.SkipDir
 	})
 
-	var ts []time.Time
-	for k := range a.history {
-		ts = append(ts, k)
-	}
-	sort.Slice(ts, func(i, j int) bool { return ts[i].Before(ts[j]) })
-	a.historyOrder = ts
+	a.Add(shards...)
 
 	return a, nil
 }
@@ -135,21 +131,18 @@ func WithArchiveGzipCompression(level int) ArchiveOpt {
 }
 
 // Add moves the files from an active shard into the archive.
-func (sa *shardArchive) Add(s *Shard) {
+func (sa *shardArchive) Add(shards ...*Shard) {
 	sa.Lock()
 	defer sa.Unlock()
 
-	if _, ok := sa.history[s.shardStart]; !ok {
-		sa.history[s.shardStart] = nil
+	for _, s := range shards {
+		if _, ok := sa.history[s.shardStart]; !ok {
+			sa.history[s.shardStart] = nil
+			sa.historyOrder = append(sa.historyOrder, s.shardStart)
+		}
+		sa.history[s.shardStart] = append(sa.history[s.shardStart], s)
 	}
-	sa.history[s.shardStart] = append(sa.history[s.shardStart], s)
-
-	var ts []time.Time
-	for k := range sa.history {
-		ts = append(ts, k)
-	}
-	sort.Slice(ts, func(i, j int) bool { return ts[i].Before(ts[j]) })
-	sa.historyOrder = ts
+	sort.Slice(sa.historyOrder, func(i, j int) bool { return sa.historyOrder[i].Before(sa.historyOrder[j]) })
 }
 
 func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
