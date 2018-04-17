@@ -81,9 +81,9 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 			return filepath.SkipDir
 		}
 
-		glog.V(2).Infof("Adding %v to archive history", path)
 		t := time.Unix(0, int64(uint64(time.Millisecond)*uid.Time()))
 		shards = append(shards, &Shard{
+			id:         uid.String(),
 			shardStart: t,
 			dataDir:    path,
 		})
@@ -136,6 +136,7 @@ func (sa *shardArchive) Add(shards ...*Shard) {
 	defer sa.Unlock()
 
 	for _, s := range shards {
+		glog.V(2).Infof("Adding shard %v to archive history (%v) ", s.id, s.shardStart)
 		if _, ok := sa.history[s.shardStart]; !ok {
 			sa.history[s.shardStart] = nil
 			sa.historyOrder = append(sa.historyOrder, s.shardStart)

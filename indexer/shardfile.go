@@ -28,6 +28,7 @@ import (
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
 	"github.com/gogo/protobuf/proto"
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
 )
@@ -57,10 +58,12 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 	var sr *io.SectionReader
 	if s.file != nil { // this is an active shard file
 		s.RLock()
+		glog.V(2).Infof("Searching active shard %v from %v to %v", s.fn, from, to)
 		sr = io.NewSectionReader(s.file, 0, s.offset)
 		s.RUnlock()
 	} else { // this is an archived shard file
 		s.Lock()
+		glog.V(2).Infof("Searching archived shard %v from %v to %v", s.fn, from, to)
 		file, err := os.Open(s.fn)
 		if err != nil {
 			s.Unlock()
@@ -307,8 +310,10 @@ func readMessageFromFileEnd(r *io.SectionReader) (*logspray.Message, error) {
 
 // Close the backing files for a shard
 func (s *ShardFile) Close() error {
-	if s.file != nil {
-		return s.file.Close()
+	file := s.file
+	s.file = nil
+	if file != nil {
+		return file.Close()
 	}
 	return nil
 }
