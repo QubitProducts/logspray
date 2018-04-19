@@ -17,7 +17,7 @@ package indexer
 
 import (
 	"context"
-	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -64,44 +64,45 @@ func (idx *Indexer) GrafanaQuery(from, to time.Time, interval time.Duration, max
 }
 
 // GrafanaQueryTable implements the Grafana Simple JSON Query request for tables
-func (idx *Indexer) GrafanaQueryTable(from, to time.Time, target string) (map[string]grafanasj.TableColumn, error) {
-	log.Printf("table search: %v", target)
+func (idx *Indexer) GrafanaQueryTable(from, to time.Time, target string) ([]grafanasj.TableColumn, error) {
 	matcher, err := ql.Compile(target)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	res := map[string]grafanasj.TableColumn{
-		"Time": grafanasj.TableColumn{Type: "time"},
-		"Text": grafanasj.TableColumn{Type: "string"},
-	}
-	timeCol := grafanasj.TableColumn{Type: "time"}
-	textCol := grafanasj.TableColumn{Type: "string"}
+	labelCols := map[string]grafanasj.TableColumn{}
+	timeCol := grafanasj.TableColumn{Text: "Time", Type: "time"}
+	textCol := grafanasj.TableColumn{Text: "Text", Type: "string"}
 
 	j := 0
-	msgFunc := func(m *logspray.Message) error {
+	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
+		if m.ControlMessage != 0 {
+			return nil
+		}
 		t, _ := ptypes.Timestamp(m.Time)
 		timeCol.Values = append(timeCol.Values, t)
 		textCol.Values = append(textCol.Values, m.Text)
 		for ln, lv := range m.Labels {
-			if _, ok := res[ln]; !ok {
-				res[ln] = grafanasj.TableColumn{
+			if _, ok := labelCols[ln]; !ok {
+				labelCols[ln] = grafanasj.TableColumn{
+					Text:   ln,
 					Type:   "string",
 					Values: make([]interface{}, j+1),
 				}
 			}
-			if len(res[ln].Values) < j+1 {
-				vs := res[ln].Values
+			if len(labelCols[ln].Values) < j+1 {
+				vs := labelCols[ln].Values
 				vs = append(vs, make([]interface{}, j+1-len(vs))...)
-				col := res[ln]
+				col := labelCols[ln]
 				col.Values = vs
-				res[ln] = col
+				labelCols[ln] = col
 			}
-			res[ln].Values[j] = lv
+			labelCols[ln].Values[j] = lv
 		}
+		j++
 		return nil
-	}
+	})
 
 	err = idx.Search(ctx, msgFunc, matcher, from, to, 500, 0, false)
 	if err != nil {
@@ -109,18 +110,27 @@ func (idx *Indexer) GrafanaQueryTable(from, to time.Time, target string) (map[st
 	}
 
 	// extend any label columns o the full length
-	for ln := range res {
-		if len(res[ln].Values) < len(timeCol.Values) {
-			vs := res[ln].Values
+	var colNames []string
+	for ln := range labelCols {
+		colNames = append(colNames, ln)
+		if len(labelCols[ln].Values) < len(timeCol.Values) {
+			vs := labelCols[ln].Values
 			vs = append(vs, make([]interface{}, len(timeCol.Values)-len(vs))...)
-			col := res[ln]
+			col := labelCols[ln]
 			col.Values = vs
-			res[ln] = col
+			labelCols[ln] = col
 		}
 	}
 
-	res["Time"] = timeCol
-	res["Text"] = textCol
+	res := []grafanasj.TableColumn{
+		timeCol,
+		textCol,
+	}
+
+	sort.Strings(colNames)
+	for _, n := range colNames {
+		res = append(res, labelCols[n])
+	}
 
 	return res, nil
 }
@@ -152,7 +162,7 @@ func (idx *Indexer) GrafanaAnnotations(from, to time.Time, query string) ([]graf
 			tags = append(tags, k+":"+v)
 		}
 		res = append(res, grafanasj.Annotation{
-			Time:  grafanasj.SimpleJSONPTime(t),
+			Time:  t,
 			Text:  hits[i].Text,
 			Title: hits[i].Text,
 			Tags:  tags,
