@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QubitProducts/logspray/indexer"
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/tcolgate/grafanasj"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -71,7 +71,7 @@ func Register(ctx context.Context, srv *http.Server, grpcServer *grpc.Server, do
 		return err
 	}
 
-	sjch := indexer.NewSimpleJSONHandler(lsrv.indx, indexer.WithGrafanaBasicAuth(lsrv.grafanaUser, lsrv.grafanaPass))
+	sjch := grafanasj.New(lsrv.indx, grafanasj.WithGrafanaBasicAuth(lsrv.grafanaUser, lsrv.grafanaPass))
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(sjch.HandleRoot))
