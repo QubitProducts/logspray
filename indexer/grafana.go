@@ -45,7 +45,7 @@ func (idx *Indexer) GrafanaQuery(from, to time.Time, interval time.Duration, max
 	}
 
 	msgFunc := func(m *logspray.Message) error {
-		if m.ControlMessage == 0 {
+		if m.ControlMessage != 0 {
 			return nil
 		}
 		t, _ := ptypes.Timestamp(m.Time)
