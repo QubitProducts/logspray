@@ -28,9 +28,7 @@ import (
 )
 
 // GrafanaQuery implements the Grafana Simple JSON Query request
-func (idx *Indexer) GrafanaQuery(from, to time.Time, interval time.Duration, maxDPs int, target string) ([]grafanasj.Data, error) {
-	ctx := context.Background()
-
+func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interval time.Duration, maxDPs int, target string) ([]grafanasj.Data, error) {
 	matcher, err := ql.Compile(target)
 	if err != nil {
 		return nil, err
@@ -67,13 +65,12 @@ func (idx *Indexer) GrafanaQuery(from, to time.Time, interval time.Duration, max
 }
 
 // GrafanaQueryTable implements the Grafana Simple JSON Query request for tables
-func (idx *Indexer) GrafanaQueryTable(from, to time.Time, target string) ([]grafanasj.TableColumn, error) {
+func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, target string) ([]grafanasj.TableColumn, error) {
 	matcher, err := ql.Compile(target)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.Background()
 	labelCols := map[string]grafanasj.TableColumn{}
 	timeCol := grafanasj.TableColumn{Text: "Time", Type: "time"}
 	textCol := grafanasj.TableColumn{Text: "Text", Type: "string"}
@@ -139,8 +136,7 @@ func (idx *Indexer) GrafanaQueryTable(from, to time.Time, target string) ([]graf
 }
 
 // GrafanaAnnotations implements the grafana Simple JSON Annotations request
-func (idx *Indexer) GrafanaAnnotations(from, to time.Time, query string) ([]grafanasj.Annotation, error) {
-	ctx := context.Background()
+func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, query string) ([]grafanasj.Annotation, error) {
 	matcher, err := ql.Compile(query)
 	if err != nil {
 		return nil, err
@@ -176,7 +172,7 @@ func (idx *Indexer) GrafanaAnnotations(from, to time.Time, query string) ([]graf
 }
 
 // GrafanaSearch implements the Grafana Simple JSON search query
-func (idx *Indexer) GrafanaSearch(target string) ([]string, error) {
+func (idx *Indexer) GrafanaSearch(ctx context.Context, target string) ([]string, error) {
 	res := []string{}
 
 	parts := strings.SplitN(target, "=", 2)
