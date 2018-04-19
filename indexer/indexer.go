@@ -185,24 +185,28 @@ func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 	idx.RUnlock()
 
 	if reverse {
-		err := s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
-		if err != nil {
-			return err
+		if s != nil && to.After(s.shardStart) {
+			err := s.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), count, offset, reverse)
+			if err != nil {
+				return err
+			}
 		}
 
-		err = idx.archive.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
-		if err != nil {
-			return err
-		}
-	} else {
 		err := idx.archive.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
 		if err != nil {
 			return err
 		}
-
-		err = s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+	} else {
+		err := idx.archive.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), count, offset, reverse)
 		if err != nil {
 			return err
+		}
+
+		if s != nil && to.After(s.shardStart) {
+			err = s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

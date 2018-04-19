@@ -155,12 +155,12 @@ func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 	//for i := len(sa.historyOrder) - 1; i >= 0; i-- {
 	for i := 0; i < len(sa.historyOrder); i++ {
 		t := sa.historyOrder[i]
-		if !t.Before(to) {
+		if t.Before(from) {
 			continue
 		}
 		qs = append(qs, sa.history[t])
 
-		if !t.After(from) {
+		if t.After(to) {
 			break
 		}
 	}
@@ -170,6 +170,7 @@ func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 
 func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	foundShardSets := sa.findShards(from, to)
+	glog.V(2).Infof("searching %v archived shards", len(foundShardSets))
 
 	for _, shardSet := range foundShardSets {
 		for _, ss := range shardSet {
