@@ -21,15 +21,21 @@ import (
 )
 
 // MatchFunc describes a function that can be used to
-// accept/reject messages.
-type MatchFunc func(hdr, m *logspray.Message) bool
+// accept/reject messages. If headerOnly is passed, only
+// the header message is matched against, and terms involving
+// unmatched labels are ignored. headerOnly is used to filter
+// files before filtering individual messages.
+type MatchFunc func(hdr, m *logspray.Message, headerOnly bool) bool
 
 func makeLabelMatch(op op, label string) (MatchFunc, error) {
-	return func(hdr, m *logspray.Message) bool {
-		if rv, ok := m.Labels[label]; ok {
+	return func(hdr, m *logspray.Message, headerOnly bool) bool {
+		if rv, ok := hdr.Labels[label]; ok {
 			return op.match(rv)
 		}
-		if rv, ok := hdr.Labels[label]; ok {
+		if headerOnly {
+			return true
+		}
+		if rv, ok := m.Labels[label]; ok {
 			return op.match(rv)
 		}
 		return false
@@ -37,10 +43,10 @@ func makeLabelMatch(op op, label string) (MatchFunc, error) {
 }
 
 func makeConjunctionMatch(fs ...MatchFunc) (MatchFunc, error) {
-	return func(hdr, m *logspray.Message) bool {
+	return func(hdr, m *logspray.Message, headerOnly bool) bool {
 		res := true
 		for i := range fs {
-			res = fs[i](hdr, m)
+			res = fs[i](hdr, m, headerOnly)
 			if res == false {
 				return res
 			}
@@ -50,10 +56,10 @@ func makeConjunctionMatch(fs ...MatchFunc) (MatchFunc, error) {
 }
 
 func makeDisjunctionMatch(fs ...MatchFunc) (MatchFunc, error) {
-	return func(hdr, m *logspray.Message) bool {
+	return func(hdr, m *logspray.Message, headerOnly bool) bool {
 		res := false
 		for i := range fs {
-			res = fs[i](hdr, m)
+			res = fs[i](hdr, m, headerOnly)
 			if res == true {
 				return res
 			}
@@ -62,7 +68,6 @@ func makeDisjunctionMatch(fs ...MatchFunc) (MatchFunc, error) {
 	}, nil
 }
 
-// Compile qstr to a matching function
 func Compile(qstr string) (MatchFunc, error) {
 	s := newScanner(bytes.NewBuffer([]byte(qstr)))
 	p := newParser(s)

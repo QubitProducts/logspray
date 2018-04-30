@@ -94,6 +94,11 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 	if err != nil {
 		return err
 	}
+	if matcher != nil {
+		if !matcher(hdr, nil, true) {
+			return nil
+		}
+	}
 	if reverse {
 		sr.Seek(0, io.SeekEnd)
 	}
@@ -126,7 +131,7 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 				continue
 			}
 			if matcher != nil {
-				if !matcher(hdr, nmsg) {
+				if !matcher(hdr, nmsg, false) {
 					continue
 				}
 			}

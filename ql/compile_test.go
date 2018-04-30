@@ -163,7 +163,179 @@ func TestQuery_Matches(t *testing.T) {
 				t.Fatalf("No error, but nil match function ")
 			}
 
-			if res := mf(st.hdr, st.m); res != st.res {
+			if res := mf(st.hdr, st.m, false); res != st.res {
+				t.Fatalf("%s: got res = %v, expected %v", t.Name(), res, st.res)
+			}
+		})
+	}
+}
+
+func TestQuery_HeaderMatches(t *testing.T) {
+	tests := []struct {
+		q        string
+		hdr      *logspray.Message
+		m        *logspray.Message
+		compiles bool
+		res      bool
+	}{
+		{
+			"job=myjob",
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			"job=otherjob",
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			false,
+		},
+		{
+			"job!=otherjob",
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			"job=*",
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			"job=* instance=servername",
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			"job=* instance=servername",
+			&logspray.Message{Labels: map[string]string{
+				"job":      "myjob",
+				"instance": "otherserver",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			false,
+		},
+		{
+			"job=myjob instance=servername instance=otherserver",
+			&logspray.Message{Labels: map[string]string{
+				"job":      "myjob",
+				"instance": "otherserver",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			"job=myjob job=job2 instance=servername",
+			&logspray.Message{Labels: map[string]string{
+				"job":      "job3",
+				"instance": "servername",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			false,
+		},
+		{
+			`job=my.+`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			false,
+		},
+		{
+			`job~my.+`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			`job~"my.+"`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			true,
+		},
+		{
+			`job!~"my.+"`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{Labels: map[string]string{}},
+			true,
+			false,
+		},
+		{
+			`job="myjob"`,
+			&logspray.Message{Labels: map[string]string{
+				"job":       "myjob",
+				"somelabel": "withvalue",
+			}},
+			&logspray.Message{Labels: map[string]string{
+				"source": "stdin",
+			}},
+			true,
+			true,
+		},
+		{
+			`otherlabel="myjob"`,
+			&logspray.Message{Labels: map[string]string{
+				"job":       "myjob",
+				"somelabel": "withvalue",
+			}},
+			&logspray.Message{Labels: map[string]string{
+				"source": "stdin",
+			}},
+			true,
+			true,
+		},
+	}
+
+	for i, st := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			mf, err := Compile(st.q)
+			if err != nil && st.compiles {
+				compiles := false
+				t.Fatalf("%s: compile got %v, expected %v", t.Name(), compiles, st.compiles)
+			}
+			if err == nil && !st.compiles {
+				compiles := true
+				t.Fatalf("%s: compile got %v, expected %v", t.Name(), compiles, st.compiles)
+			}
+
+			if !st.compiles {
+				return
+			}
+
+			if mf == nil {
+				t.Fatalf("No error, but nil match function ")
+			}
+
+			if res := mf(st.hdr, st.m, true); res != st.res {
 				t.Fatalf("%s: got res = %v, expected %v", t.Name(), res, st.res)
 			}
 		})

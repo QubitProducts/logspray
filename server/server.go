@@ -285,7 +285,7 @@ func (l *logServer) Tail(r *logspray.TailRequest, s logspray.LogService_TailServ
 				glog.Info("Error no known header for Stream %s", fmt.Sprintf("%s", m.StreamID))
 			}
 
-			if !matcher(hdr, m) {
+			if !matcher(hdr, m, false) {
 				continue
 			}
 			if hdr != nil {
@@ -429,6 +429,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 				return nil
 			}
 		}
+
 		if err := s.Send(m); err != nil {
 			return err
 		}

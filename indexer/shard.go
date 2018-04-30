@@ -163,7 +163,7 @@ func (s *Shard) LabelValues(name string) []string {
 	return res
 }
 
-func (s *Shard) findFiles(from, to time.Time) []*ShardFile {
+func (s *Shard) findFiles(msgFunc logspray.MessageFunc, from, to time.Time) []*ShardFile {
 	var fs []*ShardFile
 	if s == nil {
 		return fs
@@ -223,7 +223,7 @@ func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matche
 		return nil
 	}
 
-	fs := s.findFiles(from, to)
+	fs := s.findFiles(msgFunc, from, to)
 	for _, f := range fs {
 		if err := f.Search(ctx, msgFunc, matcher, from, to, reverse); err != nil {
 			return err

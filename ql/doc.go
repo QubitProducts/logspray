@@ -20,6 +20,6 @@
 //   "job"=somejob job="otherjob with long name" : match two specific jobsl
 //   job=somejob instance=myserver : logs for job on a specific instance
 //   job~things-.* : all jobs matching things
-//   job=billing customer=* : all illing logs with any customer label set
-//   job=billing customer~acme-.* : all illing logs with any acme- customer label set
+//   job=billing customer=* : all billing logs with any customer label set
+//   job=billing customer~acme-.* : all billing logs with any acme- customer label set
 package ql
