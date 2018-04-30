@@ -145,7 +145,10 @@ func run(cmd *cobra.Command, args []string) error {
 	defer conn.Close()
 	client := logspray.NewLogServiceClient(conn)
 
-	outTmpl, err = template.New("out").Funcs(sprig.TxtFuncMap()).Parse(format + "\n")
+	outTmpl, err = template.New("out").
+		Funcs(sprig.TxtFuncMap()).
+		Funcs(formattingFuncMap).
+		Parse(format + "\n")
 	if err != nil {
 		fatalf("failed to compile output template, %v", err)
 	}
