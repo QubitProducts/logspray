@@ -18,10 +18,11 @@ func doSearch(ctx context.Context, client logspray.LogServiceClient, args []stri
 	et, _ := ptypes.TimestampProto(time.Time(endTime))
 
 	sr := &logspray.SearchRequest{
-		From:  st,
-		To:    et,
-		Count: count,
-		Query: strings.Join(args, " "),
+		From:   st,
+		To:     et,
+		Offset: offset,
+		Count:  count,
+		Query:  strings.Join(args, " "),
 	}
 	res, err := client.SearchStream(ctx, sr)
 	if err != nil {

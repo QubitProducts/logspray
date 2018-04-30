@@ -39,6 +39,7 @@ var (
 	format     string
 	grep       string
 	grepv      bool
+	offset     uint64
 	count      uint64
 	startTime  = cliTime(time.Now().Add(-1 * time.Hour))
 	endTime    = cliTime(time.Now())
@@ -69,6 +70,7 @@ func init() {
 	clientCmd.Flags().StringVar(&grep, "grep", "", "Regular expression to match the message on the server side")
 	clientCmd.Flags().BoolVar(&grepv, "grep-v", false, "Negate regex match")
 	clientCmd.Flags().Uint64Var(&count, "count", 10, "number of values to return")
+	clientCmd.Flags().Uint64Var(&offset, "offset", 0, "number of values to skip")
 
 	clientCmd.Flags().BoolVarP(&follow, "follow", "f", false, "follow logs")
 	clientCmd.Flags().BoolVar(&listLabels, "labels", false, "list labels and label values")
