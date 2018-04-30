@@ -176,7 +176,7 @@ func (idx *Indexer) LabelValues(name string, from, to time.Time, count int) ([]s
 
 // Search queries the index for documents matching the provided
 // search query.
-func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, reverse bool) error {
 	if to.Before(from) {
 		return fmt.Errorf("time to must be after time from")
 	}
@@ -186,24 +186,24 @@ func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 
 	if reverse {
 		if s != nil && to.After(s.shardStart) {
-			err := s.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), count, offset, reverse)
+			err := s.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), reverse)
 			if err != nil {
 				return err
 			}
 		}
 
-		err := idx.archive.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+		err := idx.archive.Search(ctx, msgFunc, matcher, from, to, reverse)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := idx.archive.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), count, offset, reverse)
+		err := idx.archive.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), reverse)
 		if err != nil {
 			return err
 		}
 
 		if s != nil && to.After(s.shardStart) {
-			err = s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse)
+			err = s.Search(ctx, msgFunc, matcher, from, to, reverse)
 			if err != nil {
 				return err
 			}

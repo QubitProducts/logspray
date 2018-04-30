@@ -218,14 +218,14 @@ func (so ShardFileByStartTime) Less(i, j int) bool { return so[i].fn < so[j].fn 
 
 // Search this shard for queries between the provided time frames
 // for message matched by the provided match function.
-func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (s *Shard) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, reverse bool) error {
 	if s == nil {
 		return nil
 	}
 
 	fs := s.findFiles(from, to)
 	for _, f := range fs {
-		if err := f.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse); err != nil {
+		if err := f.Search(ctx, msgFunc, matcher, from, to, reverse); err != nil {
 			return err
 		}
 	}
@@ -236,7 +236,7 @@ type shardSet []*Shard
 
 func (ss shardSet) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
 	for _, s := range ss {
-		if err := s.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse); err != nil {
+		if err := s.Search(ctx, msgFunc, matcher, from, to, reverse); err != nil {
 			return err
 		}
 	}

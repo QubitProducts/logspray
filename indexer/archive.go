@@ -168,13 +168,13 @@ func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 	return qs
 }
 
-func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, reverse bool) error {
 	foundShardSets := sa.findShards(from, to)
 	glog.V(2).Infof("searching %v archived shards", len(foundShardSets))
 
 	for _, shardSet := range foundShardSets {
 		for _, ss := range shardSet {
-			if err := ss.Search(ctx, msgFunc, matcher, from, to, count, offset, reverse); err != nil {
+			if err := ss.Search(ctx, msgFunc, matcher, from, to, reverse); err != nil {
 				return err
 			}
 		}

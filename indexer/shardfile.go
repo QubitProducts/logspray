@@ -54,7 +54,7 @@ type ShardFile struct {
 // Search searches the shard file for messages in the provided time range,
 // matched by matcher, and passes them to msgFunc. If the reverse is true the
 // file will be searched in reverse order
-func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, count, offset uint64, reverse bool) error {
+func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, reverse bool) error {
 	var sr *io.SectionReader
 	if s.file != nil { // this is an active shard file
 		s.RLock()
@@ -130,17 +130,9 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 					continue
 				}
 			}
-			if offset > 0 {
-				offset--
-				continue
-			}
 			err = msgFunc(nmsg)
 			if err != nil {
 				return err
-			}
-			count--
-			if count == 0 {
-				return nil
 			}
 		}
 	}

@@ -51,7 +51,7 @@ func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interv
 		return nil
 	}
 
-	err = idx.Search(ctx, msgFunc, matcher, from, to, 500, 0, false)
+	err = idx.Search(ctx, msgFunc, matcher, from, to, false)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 		return nil
 	})
 
-	err = idx.Search(ctx, msgFunc, matcher, from, to, 500, 0, false)
+	err = idx.Search(ctx, msgFunc, matcher, from, to, false)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,6 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 		return nil, err
 	}
 
-	offset := uint64(0)
 	res := []grafanasj.Annotation{}
 
 	var hits []*logspray.Message
@@ -150,7 +149,7 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 		hits = append(hits, m)
 		return nil
 	})
-	err = idx.Search(ctx, msgFunc, matcher, from, to, 500, offset, true)
+	err = idx.Search(ctx, msgFunc, matcher, from, to, true)
 	if err != nil {
 		return nil, err
 	}
