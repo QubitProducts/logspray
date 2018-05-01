@@ -43,6 +43,7 @@ type Watcher struct {
 	envWhitelist []*regexp.Regexp
 	dcli         *client.Client
 	root         string
+	poll         bool
 
 	sync.Mutex
 	running map[string]*sources.Update
@@ -103,6 +104,14 @@ func WithEnvVarWhiteList(evwl []*regexp.Regexp) Opt {
 func WithRoot(root string) Opt {
 	return func(w *Watcher) error {
 		w.root = root
+		return nil
+	}
+}
+
+// WithPoll sets the default docker client
+func WithPoll(poll bool) Opt {
+	return func(w *Watcher) error {
+		w.poll = poll
 		return nil
 	}
 }

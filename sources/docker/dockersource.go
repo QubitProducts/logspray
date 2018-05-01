@@ -40,6 +40,7 @@ type MessageReader struct {
 	id        string
 	cli       *client.Client
 	fromStart bool
+	poll      bool
 
 	path string
 
@@ -53,6 +54,7 @@ func (w *Watcher) ReadTarget(ctx context.Context, id string, fromStart bool) (so
 		id:    id,
 		lines: make(chan *logspray.Message),
 		cli:   w.dcli,
+		poll:  w.poll,
 		path:  path,
 	}
 
@@ -87,6 +89,7 @@ func (dls *MessageReader) dockerReadLogs(ctx context.Context, fromStart bool) {
 		MustExist: false,
 		Follow:    true,
 		ReOpen:    true,
+		Poll:      dls.poll,
 		//		Logger:    logto,
 	})
 	if err != nil {

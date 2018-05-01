@@ -31,12 +31,13 @@ type MessageReader struct {
 	labels map[string]string
 }
 
-func (*Watcher) ReadTarget(ctx context.Context, fn string, fromStart bool) (sources.MessageReader, error) {
+func (w *Watcher) ReadTarget(ctx context.Context, fn string, fromStart bool) (sources.MessageReader, error) {
 	ft, err := tail.TailFile(fn, tail.Config{
 		Location:  &tail.SeekInfo{Whence: 0, Offset: 0},
 		MustExist: false,
 		Follow:    true,
 		ReOpen:    true,
+		Poll:      w.Poll,
 		//		Logger:    logto,
 	})
 

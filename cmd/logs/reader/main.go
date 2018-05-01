@@ -54,6 +54,7 @@ var (
 	statsAddr      string
 	dockerFind     bool
 	dockerRoot     string
+	dockerPoll     bool
 	todevnull      bool
 	caFile         string
 	insecure       bool
@@ -69,6 +70,7 @@ func init() {
 	readerCmd.Flags().StringVar(&statsAddr, "stats.addr", ":9998", "Address to listen for stats on, set to \"\" to disable")
 	readerCmd.Flags().BoolVar(&dockerFind, "docker", true, "Whether check for docker container logs")
 	readerCmd.Flags().StringVar(&dockerRoot, "docker.root", "", "Path to the docker root, by default it is autodiscovered")
+	readerCmd.Flags().BoolVar(&dockerPoll, "docker.poll", false, "poll docker log files rather than inotify")
 	readerCmd.Flags().BoolVar(&todevnull, "devnull", false, "Drop all logs, but do the stats")
 	readerCmd.Flags().StringVar(&caFile, "tls.ca", "", "Path to root CA")
 	readerCmd.Flags().BoolVar(&insecure, "tls.insecure", false, "Turn off transport cert verification")
@@ -193,6 +195,7 @@ func run(*cobra.Command, []string) {
 						regexp.MustCompile("^CHRONOS_.+"),
 					}),
 				docker.WithRoot(dockerRoot),
+				docker.WithPoll(dockerPoll),
 			)
 			if err != nil {
 				log.Fatal(err)

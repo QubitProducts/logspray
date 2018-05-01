@@ -28,11 +28,12 @@ import (
 )
 
 // New creates a new filesystem log source
-func New(Path string, NameRegexp *regexp.Regexp, Recur bool) *Watcher {
+func New(Path string, NameRegexp *regexp.Regexp, Recur bool, Poll bool) *Watcher {
 	return &Watcher{
 		Path:       Path,
 		Recur:      Recur,
 		NameRegexp: NameRegexp,
+		Poll:       Poll,
 	}
 }
 
@@ -41,6 +42,7 @@ type Watcher struct {
 	Path       string
 	NameRegexp *regexp.Regexp
 	Recur      bool //recur into directories
+	Poll       bool
 
 	ups chan []*sources.Update
 }
