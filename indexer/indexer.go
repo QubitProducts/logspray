@@ -32,6 +32,7 @@ import (
 // mssages.
 type Indexer struct {
 	shardDuration time.Duration
+	searchGrace   time.Duration
 	dataDir       string
 
 	id string
@@ -69,7 +70,10 @@ func New(opts ...Opt) (*Indexer, error) {
 		}
 	}
 
-	arch, err := NewArchive(WithArchiveDataDir(indx.dataDir))
+	arch, err := NewArchive(
+		WithArchiveDataDir(indx.dataDir),
+		WithArchiveSearchGrace(indx.searchGrace),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +87,15 @@ func New(opts ...Opt) (*Indexer, error) {
 func WithSharDuration(d time.Duration) Opt {
 	return func(i *Indexer) error {
 		i.shardDuration = d
+		return nil
+	}
+}
+
+// WithSearchGrace shards +/- this grace period will be included in
+// searches.
+func WithSearchGrace(d time.Duration) Opt {
+	return func(i *Indexer) error {
+		i.searchGrace = d
 		return nil
 	}
 }
@@ -186,7 +199,7 @@ func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 
 	if reverse {
 		if s != nil && to.After(s.shardStart) {
-			err := s.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), reverse)
+			err := s.Search(ctx, msgFunc, matcher, from, to, reverse)
 			if err != nil {
 				return err
 			}
@@ -197,7 +210,7 @@ func (idx *Indexer) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 			return err
 		}
 	} else {
-		err := idx.archive.Search(ctx, msgFunc, matcher, from.Add(idx.shardDuration*-1), to.Add(idx.shardDuration), reverse)
+		err := idx.archive.Search(ctx, msgFunc, matcher, from, to, reverse)
 		if err != nil {
 			return err
 		}

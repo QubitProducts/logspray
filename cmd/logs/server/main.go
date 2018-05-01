@@ -63,6 +63,7 @@ var (
 
 	indexDir      string
 	shardDuration time.Duration
+	searchGrace   time.Duration
 
 	grafanaBasicAuthUser string
 	grafanaBasicAuthPass string
@@ -83,6 +84,7 @@ func init() {
 
 	serverCmd.Flags().StringVar(&indexDir, "index.dir", "data", "Directory to store the index data in")
 	serverCmd.Flags().DurationVar(&shardDuration, "index.shard-duration", 15*time.Minute, "Length of eacch index shard")
+	serverCmd.Flags().DurationVar(&searchGrace, "index.search-grace", 15*time.Minute, "shards started +/- search grace will be included in searches")
 
 	serverCmd.Flags().StringVar(&grafanaBasicAuthUser, "grafana.user", os.Getenv("GRAFANA_BASICAUTH_USER"), "User for grafana simplejson basic auth")
 	serverCmd.Flags().StringVar(&grafanaBasicAuthPass, "grafana.pass", os.Getenv("GRAFANA_BASICAUTH_PASS"), "Password for grafana simplejson basic auth")

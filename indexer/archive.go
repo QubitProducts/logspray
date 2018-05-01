@@ -37,11 +37,12 @@ import (
 )
 
 type shardArchive struct {
-	dataDir    string
-	stowConfig stow.ConfigMap
-	retention  time.Duration
-	encryptTo  []openpgp.Entity
-	gzipLevel  int
+	dataDir     string
+	stowConfig  stow.ConfigMap
+	retention   time.Duration
+	encryptTo   []openpgp.Entity
+	gzipLevel   int
+	searchGrace time.Duration
 
 	sync.RWMutex
 	history      map[time.Time][]*Shard
@@ -53,8 +54,9 @@ type ArchiveOpt func(a *shardArchive) (*shardArchive, error)
 func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 	var err error
 	a := &shardArchive{
-		dataDir: "data",
-		history: map[time.Time][]*Shard{},
+		dataDir:     "data",
+		history:     map[time.Time][]*Shard{},
+		searchGrace: time.Minute * 15,
 	}
 	for _, o := range opts {
 		a, err = o(a)
@@ -98,6 +100,13 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 func WithArchiveDataDir(datadir string) ArchiveOpt {
 	return func(a *shardArchive) (*shardArchive, error) {
 		a.dataDir = datadir
+		return a, nil
+	}
+}
+
+func WithArchiveSearchGrace(grace time.Duration) ArchiveOpt {
+	return func(a *shardArchive) (*shardArchive, error) {
+		a.searchGrace = grace
 		return a, nil
 	}
 }
@@ -155,12 +164,12 @@ func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 	//for i := len(sa.historyOrder) - 1; i >= 0; i-- {
 	for i := 0; i < len(sa.historyOrder); i++ {
 		t := sa.historyOrder[i]
-		if t.Before(from) {
+		if t.Before(from.Add(-1 * sa.searchGrace)) {
 			continue
 		}
 		qs = append(qs, sa.history[t])
 
-		if t.After(to) {
+		if t.After(to.Add(sa.searchGrace)) {
 			break
 		}
 	}
