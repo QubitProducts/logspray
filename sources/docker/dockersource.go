@@ -86,7 +86,7 @@ func (dls *MessageReader) dockerReadLogs(ctx context.Context, fromStart bool) {
 		Location:  &tail.SeekInfo{Whence: whence, Offset: 0},
 		MustExist: false,
 		Follow:    true,
-		ReOpen:    false,
+		ReOpen:    true,
 		//		Logger:    logto,
 	})
 	if err != nil {
