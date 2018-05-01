@@ -47,6 +47,9 @@ func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interv
 			return nil
 		}
 		t, _ := ptypes.Timestamp(m.Time)
+		if t.Before(from) || t.After(to) {
+			return nil
+		}
 		hits[t.Truncate(interval)]++
 		return nil
 	}
@@ -81,6 +84,9 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 			return nil
 		}
 		t, _ := ptypes.Timestamp(m.Time)
+		if t.Before(from) || t.After(to) {
+			return nil
+		}
 		timeCol.Values = append(timeCol.Values, t)
 		textCol.Values = append(textCol.Values, m.Text)
 		for ln, lv := range m.Labels {
@@ -146,6 +152,10 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 
 	var hits []*logspray.Message
 	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
+		t, _ := ptypes.Timestamp(m.Time)
+		if t.Before(from) || t.After(to) {
+			return nil
+		}
 		hits = append(hits, m)
 		return nil
 	})
