@@ -33,6 +33,7 @@ import (
 type Indexer struct {
 	shardDuration time.Duration
 	searchGrace   time.Duration
+	grafanaMaxRes int
 	dataDir       string
 
 	id string
@@ -61,6 +62,7 @@ func New(opts ...Opt) (*Indexer, error) {
 	indx := &Indexer{
 		id:            id,
 		shardDuration: time.Minute * 1,
+		grafanaMaxRes: 500,
 		dataDir:       "data",
 	}
 

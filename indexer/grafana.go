@@ -78,6 +78,9 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 	timeCol := grafanasj.TableColumn{Text: "Time", Type: "time"}
 	textCol := grafanasj.TableColumn{Text: "Text", Type: "string"}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	max := idx.grafanaMaxRes
 	j := 0
 	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
 		if m.ControlMessage != 0 {
@@ -107,11 +110,14 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 			labelCols[ln].Values[j] = lv
 		}
 		j++
+		if j >= max {
+			cancel()
+		}
 		return nil
 	})
 
 	err = idx.Search(ctx, msgFunc, matcher, from, to, false)
-	if err != nil {
+	if err != nil && err != context.Canceled {
 		return nil, err
 	}
 
@@ -150,6 +156,9 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 
 	res := []grafanasj.Annotation{}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	max := idx.grafanaMaxRes
 	var hits []*logspray.Message
 	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
 		t, _ := ptypes.Timestamp(m.Time)
@@ -157,10 +166,14 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 			return nil
 		}
 		hits = append(hits, m)
+		max--
+		if max == 0 {
+			cancel()
+		}
 		return nil
 	})
 	err = idx.Search(ctx, msgFunc, matcher, from, to, true)
-	if err != nil {
+	if err != nil && err != context.Canceled {
 		return nil, err
 	}
 	for i := range hits {
