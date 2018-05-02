@@ -58,12 +58,12 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 	var sr *io.SectionReader
 	if s.file != nil { // this is an active shard file
 		s.RLock()
-		glog.V(2).Infof("Searching active shard file %v from %v to %v", s.fn, from, to)
+		glog.V(3).Infof("Searching active shard file %v from %v to %v", s.fn, from, to)
 		sr = io.NewSectionReader(s.file, 0, s.offset)
 		s.RUnlock()
 	} else { // this is an archived shard file
 		s.Lock()
-		glog.V(2).Infof("Searching archived shard file %v from %v to %v", s.fn, from, to)
+		glog.V(3).Infof("Searching archived shard file %v from %v to %v", s.fn, from, to)
 		file, err := os.Open(s.fn)
 		if err != nil {
 			s.Unlock()

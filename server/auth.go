@@ -60,7 +60,7 @@ func MakeAuthUnaryInterceptor(kf keysFunc) func(ctx context.Context, req interfa
 		var verified bool
 		keys, err := kf()
 		if err != nil {
-			glog.Infof("could not fetch jws signing keys, %v", err)
+			glog.Errorf("could not fetch jws signing keys, %v", err)
 			return handler(ctx, req)
 		}
 
@@ -69,20 +69,16 @@ func MakeAuthUnaryInterceptor(kf keysFunc) func(ctx context.Context, req interfa
 		}
 
 		for kid, k := range keys {
-			if glog.V(2) {
-				glog.Infof("checking token %s against, %v", jst[0], kid)
-			}
+			glog.V(3).Infof("checking token %s against, %v", jst[0], kid)
 			if err := jws.Verify(jst[0], k); err == nil {
 				verified = true
 				break
 			} else {
-				if glog.V(1) {
-					glog.Infof("could not verify jws token, %v", err)
-				}
+				glog.V(2).Infof("could not verify jws token, %v", err)
 			}
 		}
 		if !verified {
-			glog.Infof("could not verify jws token against any keys")
+			glog.Errorf("could not verify jws token against any keys")
 			return handler(ctx, req)
 		}
 
@@ -127,20 +123,16 @@ func MakeAuthStreamingInterceptor(kf keysFunc) func(srv interface{}, stream grpc
 		}
 
 		for kid, k := range keys {
-			if glog.V(2) {
-				glog.Infof("checking token %q against, %v", jst[0], kid)
-			}
+			glog.V(3).Infof("checking token %q against, %v", jst[0], kid)
 			if err := jws.Verify(jst[0], k); err == nil {
 				verified = true
 				break
 			} else {
-				if glog.V(1) {
-					glog.Infof("could not verify jws token, %v", err)
-				}
+				glog.V(2).Infof("could not verify jws token, %v", err)
 			}
 		}
 		if !verified {
-			glog.Infof("could not verify jws token against any keys")
+			glog.Errorf("could not verify jws token against any keys")
 			return handler(srv, newStream)
 		}
 

@@ -156,6 +156,7 @@ func (sa *shardArchive) Add(shards ...*Shard) {
 }
 
 func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
+	glog.V(2).Infof("searching for shards from %v to %v", from, to)
 	sa.RLock()
 	defer sa.RUnlock()
 
@@ -178,8 +179,9 @@ func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
 }
 
 func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc, matcher ql.MatchFunc, from, to time.Time, reverse bool) error {
+	glog.V(2).Infof("searching archive shards from %v to %v", from, to)
 	foundShardSets := sa.findShards(from.Add(-2*sa.searchGrace), to.Add(sa.searchGrace))
-	glog.V(2).Infof("searching %v archived shards", len(foundShardSets))
+	glog.V(2).Infof("found %v archived shards", len(foundShardSets))
 
 	for _, shardSet := range foundShardSets {
 		for _, ss := range shardSet {
