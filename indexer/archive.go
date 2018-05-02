@@ -198,6 +198,10 @@ func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc
 
 // prune old shards
 func (sa *shardArchive) prune() {
+	if sa.retention == 0 {
+		glog.V(2).Infof("Log pruning is disabled")
+		return
+	}
 	sa.Lock()
 	defer sa.Unlock()
 
