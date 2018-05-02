@@ -153,6 +153,8 @@ func (sa *shardArchive) Add(shards ...*Shard) {
 		sa.history[s.shardStart] = append(sa.history[s.shardStart], s)
 	}
 	sort.Slice(sa.historyOrder, func(i, j int) bool { return sa.historyOrder[i].Before(sa.historyOrder[j]) })
+
+	go sa.prune()
 }
 
 func (sa *shardArchive) findShards(from, to time.Time) []shardSet {
@@ -192,4 +194,41 @@ func (sa *shardArchive) Search(ctx context.Context, msgFunc logspray.MessageFunc
 	}
 
 	return nil
+}
+
+// prune old shards
+func (sa *shardArchive) prune() {
+	sa.Lock()
+	defer sa.Unlock()
+
+	pivotTime := time.Now().Add(-1 * (sa.retention))
+	glog.V(2).Infof("Starting archive prune for shards more than %s old (before %s)", sa.retention, pivotTime)
+	pivot := 0
+	for i := range sa.historyOrder {
+		if sa.historyOrder[i].After(pivotTime) {
+			break
+		}
+		pivot = i
+	}
+	oldTs := sa.historyOrder[:pivot]
+	sa.historyOrder = sa.historyOrder[pivot:]
+
+	var oldShards []*Shard
+	for _, t := range oldTs {
+		oldShards = append(oldShards, sa.history[t]...)
+		delete(sa.history, t)
+	}
+
+	if len(oldShards) > 0 {
+		go sa.pruneShards(oldShards)
+	}
+}
+
+func (sa *shardArchive) pruneShards(ss []*Shard) {
+	glog.V(1).Infof("Deleteing %v shards", len(ss))
+	for _, s := range ss {
+		glog.V(1).Infof("Deleteing shard %v", s.id)
+		_ = os.RemoveAll(s.dataDir)
+		glog.V(1).Infof("Done deleteing shard %v", s.id)
+	}
 }

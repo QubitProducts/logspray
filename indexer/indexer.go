@@ -33,6 +33,7 @@ import (
 type Indexer struct {
 	shardDuration time.Duration
 	searchGrace   time.Duration
+	retention     time.Duration
 	grafanaMaxRes int
 	dataDir       string
 
@@ -62,6 +63,7 @@ func New(opts ...Opt) (*Indexer, error) {
 	indx := &Indexer{
 		id:            id,
 		shardDuration: time.Minute * 1,
+		searchGrace:   time.Minute * 1,
 		grafanaMaxRes: 500,
 		dataDir:       "data",
 	}
@@ -74,6 +76,7 @@ func New(opts ...Opt) (*Indexer, error) {
 
 	arch, err := NewArchive(
 		WithArchiveDataDir(indx.dataDir),
+		WithArchiveRetention(indx.retention),
 		WithArchiveSearchGrace(indx.searchGrace),
 	)
 	if err != nil {
@@ -98,6 +101,14 @@ func WithSharDuration(d time.Duration) Opt {
 func WithSearchGrace(d time.Duration) Opt {
 	return func(i *Indexer) error {
 		i.searchGrace = d
+		return nil
+	}
+}
+
+// WithRetention sets the retnetion periods.
+func WithRetention(d time.Duration) Opt {
+	return func(i *Indexer) error {
+		i.retention = d
 		return nil
 	}
 }
