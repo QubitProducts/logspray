@@ -141,6 +141,28 @@ func TestQuery_Matches(t *testing.T) {
 			true,
 			false,
 		},
+		{
+			`__text__~"haha"`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{
+				Text: "this is nice if it works haha",
+			},
+			true,
+			true,
+		},
+		{
+			`job=otherjob __text__~"haha"`,
+			&logspray.Message{Labels: map[string]string{
+				"job": "myjob",
+			}},
+			&logspray.Message{
+				Text: "this is nice if it works haha",
+			},
+			true,
+			false,
+		},
 	}
 
 	for i, st := range tests {
