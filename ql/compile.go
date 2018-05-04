@@ -28,6 +28,14 @@ import (
 type MatchFunc func(hdr, m *logspray.Message, headerOnly bool) bool
 
 func makeLabelMatch(op op, label string) (MatchFunc, error) {
+	if label == "__text__" {
+		return func(hdr, m *logspray.Message, headerOnly bool) bool {
+			if headerOnly {
+				return true
+			}
+			return op.match(m.Text)
+		}, nil
+	}
 	return func(hdr, m *logspray.Message, headerOnly bool) bool {
 		if rv, ok := hdr.Labels[label]; ok {
 			return op.match(rv)
