@@ -1,14 +1,14 @@
 .PHONY: assets
 
-assets: bindata_assetfs.go
+assets: statik/statik.go
 
-bindata_assetfs.go: swagger.json
-	go-bindata-assetfs -pkg server -prefix=swagger-ui swagger.json swagger-ui/dist/...
+statik/statik.go: swagger-ui/dist/swagger.json
+	statik --src=swagger-ui -f
 
-swagger.json: ../proto/logspray/log.proto
-	protoc -I/usr/local/include -I../ -I$$GOPATH/src -I$$GOPATH/src/github.com/golang/protobuf/ptypes -I$$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --swagger_out=logtostderr=true:. ../log.proto
-	mv log.swagger.json swagger.json
+swagger-ui/dist/swagger.json: ../proto/logspray/log.proto
+	protoc -I/usr/local/include -I../ -I$$GOPATH/src -I$$GOPATH/src/github.com/golang/protobuf/ptypes -I$$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --swagger_out=logtostderr=true:. ../proto/logspray/log.proto
+	mv proto/logspray/log.swagger.json swagger-ui/dist/swagger.json
 
 clean:
-	rm bindata_assetfs.go swagger.json
+	rm -rf statik swagger-ui/dist/swagger.json
 

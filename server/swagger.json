@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "log.proto",
+    "title": "proto/logspray/log.proto",
     "version": "version not set"
   },
   "schemes": [
@@ -41,6 +41,20 @@
             "required": true,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
           }
         ],
         "tags": [
@@ -79,8 +93,28 @@
             "name": "name",
             "in": "path",
             "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
             "type": "string",
-            "format": "string"
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -174,8 +208,42 @@
             "name": "query",
             "in": "path",
             "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
             "type": "string",
-            "format": "string"
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "reverse",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
           }
         ],
         "tags": [
@@ -214,8 +282,42 @@
             "name": "query",
             "in": "path",
             "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
             "type": "string",
-            "format": "string"
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "reverse",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
           }
         ],
         "tags": [
@@ -235,6 +337,21 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "max",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "LogService"
         ]
@@ -253,36 +370,13 @@
       ],
       "default": "NONE"
     },
-    "logsprayLabelValuesRequest": {
-      "type": "object",
-      "properties": {
-        "from": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "to": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "name": {
-          "type": "string",
-          "format": "string"
-        },
-        "count": {
-          "type": "string",
-          "format": "int64"
-        }
-      },
-      "title": "LabelValuesRequest"
-    },
     "logsprayLabelValuesResponse": {
       "type": "object",
       "properties": {
         "values": {
           "type": "array",
           "items": {
-            "type": "string",
-            "format": "string"
+            "type": "string"
           }
         },
         "total_hit_count": {
@@ -292,28 +386,13 @@
       },
       "title": "LabelValuesResponse"
     },
-    "logsprayLabelsRequest": {
-      "type": "object",
-      "properties": {
-        "from": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "to": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "title": "LabelsRequest"
-    },
     "logsprayLabelsResponse": {
       "type": "object",
       "properties": {
         "names": {
           "type": "array",
           "items": {
-            "type": "string",
-            "format": "string"
+            "type": "string"
           }
         }
       },
@@ -339,8 +418,7 @@
         "labels": {
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "format": "string"
+            "type": "string"
           }
         },
         "setheader": {
@@ -348,15 +426,13 @@
           "format": "boolean"
         },
         "text": {
-          "type": "string",
-          "format": "string"
+          "type": "string"
         },
         "control_message": {
           "$ref": "#/definitions/MessageControlMessage"
         },
         "StreamID": {
-          "type": "string",
-          "format": "string"
+          "type": "string"
         },
         "Index": {
           "type": "string",
@@ -364,36 +440,6 @@
         }
       },
       "title": "Message"
-    },
-    "logspraySearchRequest": {
-      "type": "object",
-      "properties": {
-        "from": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "to": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "query": {
-          "type": "string",
-          "format": "string"
-        },
-        "count": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "offset": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "reverse": {
-          "type": "boolean",
-          "format": "boolean"
-        }
-      },
-      "title": "SearchRequest"
     },
     "logspraySearchResponse": {
       "type": "object",
@@ -410,20 +456,6 @@
         }
       },
       "title": "SearchResponse"
-    },
-    "logsprayTailRequest": {
-      "type": "object",
-      "properties": {
-        "max": {
-          "type": "string",
-          "format": "int64"
-        },
-        "query": {
-          "type": "string",
-          "format": "string"
-        }
-      },
-      "title": "TailRequest"
     }
   }
 }

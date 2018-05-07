@@ -17,17 +17,30 @@ package server
 
 import (
 	"fmt"
-	"io"
+	"log"
 	"mime"
 	"net/http"
 	"strings"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/rakyll/statik/fs"
 	"github.com/tcolgate/grafanasj"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+
+	_ "github.com/QubitProducts/logspray/server/statik"
 )
+
+var statikFS http.FileSystem
+
+func init() {
+	var err error
+	statikFS, err = fs.New()
+	if err != nil {
+		log.Println(err)
+	}
+}
 
 // grpcHandlerFunc returns an http.Handler that delegates to grpcServer on incoming gRPC
 // connections or otherHandler otherwise. Copied from cockroachdb.
@@ -45,15 +58,14 @@ func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Ha
 func HandleSwagger(mux *http.ServeMux) {
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
-	// Expose files in third_party/swagger-ui/ on <host>/swagger-ui
-	fileServer := http.FileServer(assetFS())
-	prefix := "/swagger-ui/"
-	mux.Handle(prefix, http.StripPrefix(prefix, fileServer))
+	mux.Handle("/swagger-ui/", http.StripPrefix("/swagger-ui/", http.FileServer(statikFS)))
 
-	mux.HandleFunc("/swagger-ui/swagger.json", func(w http.ResponseWriter, req *http.Request) {
-		lsj, _ := swaggerJsonSwaggerJsonBytes()
-		io.Copy(w, strings.NewReader(string(lsj)))
-	})
+	/*
+		mux.HandleFunc("/swagger-ui/swagger.json", func(w http.ResponseWriter, req *http.Request) {
+			lsj, _ := swaggerJsonSwaggerJsonBytes()
+			io.Copy(w, strings.NewReader(string(lsj)))
+		})
+	*/
 }
 
 // Register sets up the log server on the provided http and grpc servers. THe
