@@ -369,6 +369,10 @@ func (l *logServer) Search(ctx context.Context, r *logspray.SearchRequest) (*log
 		return nil, err
 	}
 
+	if r.Count == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "count must be non-zero")
+	}
+
 	matcher, err := ql.Compile(r.Query)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
@@ -424,6 +428,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	enforceCount := r.Count != 0
 	count := r.Count
 	offset := r.Offset
 	msgFunc := logspray.MakeInjectStreamHeadersFunc(func(m *logspray.Message) error {
@@ -442,7 +447,7 @@ func (l *logServer) SearchStream(r *logspray.SearchRequest, s logspray.LogServic
 			return err
 		}
 
-		if m.ControlMessage == 0 {
+		if enforceCount && m.ControlMessage == 0 {
 			count--
 			if count == 0 {
 				cancel()
