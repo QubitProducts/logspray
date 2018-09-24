@@ -25,7 +25,7 @@ import (
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/rakyll/statik/fs"
-	"github.com/tcolgate/grafanasj"
+	"github.com/tcolgate/grafana-simple-json-go"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
@@ -68,6 +68,20 @@ func HandleSwagger(mux *http.ServeMux) {
 	*/
 }
 
+func basicAuth(next http.Handler, user, password string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqUser, reqPass, _ := r.BasicAuth()
+
+		if user != reqUser || password != reqPass {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Register sets up the log server on the provided http and grpc servers. THe
 // dial options will be used for all outbound gRPC reuqests.
 func Register(ctx context.Context, srv *http.Server, grpcServer *grpc.Server, dopts []grpc.DialOption, opts ...serverOpt) error {
@@ -83,14 +97,22 @@ func Register(ctx context.Context, srv *http.Server, grpcServer *grpc.Server, do
 		return err
 	}
 
-	sjch := grafanasj.New(lsrv.indx, grafanasj.WithGrafanaBasicAuth(lsrv.grafanaUser, lsrv.grafanaPass))
+	sjch := basicAuth(simplejson.New(
+		simplejson.WithQuerier(lsrv.indx),
+		simplejson.WithTableQuerier(lsrv.indx),
+		simplejson.WithSearcher(lsrv.indx),
+		simplejson.WithTagSearcher(lsrv.indx),
+		simplejson.WithAnnotator(lsrv.indx),
+	), lsrv.grafanaUser, lsrv.grafanaPass)
 
 	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(sjch.HandleRoot))
+	mux.Handle("/", sjch)
 	mux.Handle("/v1/", gwmux)
-	mux.Handle("/query", http.HandlerFunc(sjch.HandleQuery))
-	mux.Handle("/search", http.HandlerFunc(sjch.HandleSearch))
-	mux.Handle("/annotations", http.HandlerFunc(sjch.HandleAnnotations))
+	mux.Handle("/query", sjch)
+	mux.Handle("/search", sjch)
+	mux.Handle("/annotations", sjch)
+	mux.Handle("/tag-keys", sjch)
+	mux.Handle("/tag-values", sjch)
 
 	srv.Handler = grpcHandlerFunc(grpcServer, mux)
 

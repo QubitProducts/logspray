@@ -33,6 +33,7 @@ require (
 	github.com/rakyll/statik v0.1.5
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.2 // indirect
+	github.com/tcolgate/grafana-simple-json-go v0.9.1
 	github.com/tcolgate/grafanasj v1.0.0
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
 	golang.org/x/net v0.0.0-20180921000356-2f5d2388922f

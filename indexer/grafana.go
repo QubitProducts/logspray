@@ -24,11 +24,11 @@ import (
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/tcolgate/grafanasj"
+	simplejson "github.com/tcolgate/grafana-simple-json-go"
 )
 
 // GrafanaQuery implements the Grafana Simple JSON Query request
-func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interval time.Duration, maxDPs int, target string) ([]grafanasj.Data, error) {
+func (idx *Indexer) GrafanaQuery(ctx context.Context, target string, args simplejson.QueryArguments) ([]simplejson.DataPoint, error) {
 	matcher, err := ql.Compile(target)
 	if err != nil {
 		return nil, err
@@ -36,8 +36,8 @@ func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interv
 
 	hits := map[time.Time]float64{}
 	var tvals []time.Time
-	for qtime := from; qtime.Before(to); qtime = qtime.Add(interval) {
-		t := qtime.Truncate(interval)
+	for qtime := args.From; qtime.Before(args.To); qtime = qtime.Add(args.Interval) {
+		t := qtime.Truncate(args.Interval)
 		hits[t] = 0
 		tvals = append(tvals, t)
 	}
@@ -47,36 +47,36 @@ func (idx *Indexer) GrafanaQuery(ctx context.Context, from, to time.Time, interv
 			return nil
 		}
 		t, _ := ptypes.Timestamp(m.Time)
-		if t.Before(from) || t.After(to) {
+		if t.Before(args.From) || t.After(args.To) {
 			return nil
 		}
-		hits[t.Truncate(interval)]++
+		hits[t.Truncate(args.Interval)]++
 		return nil
 	}
 
-	err = idx.Search(ctx, msgFunc, matcher, from, to, false)
+	err = idx.Search(ctx, msgFunc, matcher, args.From, args.To, false)
 	if err != nil {
 		return nil, err
 	}
 
-	data := []grafanasj.Data{}
+	data := []simplejson.DataPoint{}
 	for _, t := range tvals {
-		data = append(data, grafanasj.Data{Time: t, Value: hits[t]})
+		data = append(data, simplejson.DataPoint{Time: t, Value: hits[t]})
 	}
 
 	return data, nil
 }
 
 // GrafanaQueryTable implements the Grafana Simple JSON Query request for tables
-func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, target string) ([]grafanasj.TableColumn, error) {
+func (idx *Indexer) GrafanaQueryTable(ctx context.Context, target string, args simplejson.TableQueryArguments) ([]simplejson.TableColumn, error) {
 	matcher, err := ql.Compile(target)
 	if err != nil {
 		return nil, err
 	}
 
-	labelCols := map[string]grafanasj.TableColumn{}
-	timeCol := grafanasj.TableColumn{Text: "Time", Type: "time"}
-	textCol := grafanasj.TableColumn{Text: "Text", Type: "string"}
+	labelCols := map[string]simplejson.TableStringColumn{}
+	timeCol := simplejson.TableTimeColumn{}
+	textCol := simplejson.TableStringColumn{}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -87,27 +87,23 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 			return nil
 		}
 		t, _ := ptypes.Timestamp(m.Time)
-		if t.Before(from) || t.After(to) {
+		if t.Before(args.From) || t.After(args.To) {
 			return nil
 		}
-		timeCol.Values = append(timeCol.Values, t)
-		textCol.Values = append(textCol.Values, m.Text)
+		timeCol = append(timeCol, t)
+		textCol = append(textCol, m.Text)
 		for ln, lv := range m.Labels {
 			if _, ok := labelCols[ln]; !ok {
-				labelCols[ln] = grafanasj.TableColumn{
-					Text:   ln,
-					Type:   "string",
-					Values: make([]interface{}, j+1),
-				}
+				labelCols[ln] = make(simplejson.TableStringColumn, j+1)
 			}
-			if len(labelCols[ln].Values) < j+1 {
-				vs := labelCols[ln].Values
-				vs = append(vs, make([]interface{}, j+1-len(vs))...)
+			if len(labelCols[ln]) < j+1 {
+				vs := labelCols[ln]
+				vs = append(vs, make(simplejson.TableStringColumn, j+1-len(vs))...)
 				col := labelCols[ln]
-				col.Values = vs
+				col = vs
 				labelCols[ln] = col
 			}
-			labelCols[ln].Values[j] = lv
+			labelCols[ln][j] = lv
 		}
 		j++
 		if j >= max {
@@ -116,7 +112,7 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 		return nil
 	})
 
-	err = idx.Search(ctx, msgFunc, matcher, from, to, false)
+	err = idx.Search(ctx, msgFunc, matcher, args.From, args.To, false)
 	if err != nil && err != context.Canceled {
 		return nil, err
 	}
@@ -125,36 +121,45 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, from, to time.Time, t
 	var colNames []string
 	for ln := range labelCols {
 		colNames = append(colNames, ln)
-		if len(labelCols[ln].Values) < len(timeCol.Values) {
-			vs := labelCols[ln].Values
-			vs = append(vs, make([]interface{}, len(timeCol.Values)-len(vs))...)
+		if len(labelCols[ln]) < len(timeCol) {
+			vs := labelCols[ln]
+			vs = append(vs, make(simplejson.TableStringColumn, len(timeCol)-len(vs))...)
 			col := labelCols[ln]
-			col.Values = vs
+			col = vs
 			labelCols[ln] = col
 		}
 	}
 
-	res := []grafanasj.TableColumn{
-		timeCol,
-		textCol,
+	res := []simplejson.TableColumn{
+		{
+			Text: "Time",
+			Data: timeCol,
+		},
+		{
+			Text: "Text",
+			Data: textCol,
+		},
 	}
 
 	sort.Strings(colNames)
 	for _, n := range colNames {
-		res = append(res, labelCols[n])
+		res = append(res, simplejson.TableColumn{
+			Text: n,
+			Data: labelCols[n],
+		})
 	}
 
 	return res, nil
 }
 
 // GrafanaAnnotations implements the grafana Simple JSON Annotations request
-func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, query string) ([]grafanasj.Annotation, error) {
+func (idx *Indexer) GrafanaAnnotations(ctx context.Context, query string, args simplejson.AnnotationsArguments) ([]simplejson.Annotation, error) {
 	matcher, err := ql.Compile(query)
 	if err != nil {
 		return nil, err
 	}
 
-	res := []grafanasj.Annotation{}
+	res := []simplejson.Annotation{}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -162,7 +167,7 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 	var hits []*logspray.Message
 	msgFunc := logspray.MakeFlattenStreamFunc(func(m *logspray.Message) error {
 		t, _ := ptypes.Timestamp(m.Time)
-		if t.Before(from) || t.After(to) {
+		if t.Before(args.From) || t.After(args.To) {
 			return nil
 		}
 		hits = append(hits, m)
@@ -172,7 +177,7 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 		}
 		return nil
 	})
-	err = idx.Search(ctx, msgFunc, matcher, from, to, true)
+	err = idx.Search(ctx, msgFunc, matcher, args.From, args.To, true)
 	if err != nil && err != context.Canceled {
 		return nil, err
 	}
@@ -182,7 +187,7 @@ func (idx *Indexer) GrafanaAnnotations(ctx context.Context, from, to time.Time, 
 		for k, v := range hits[i].Labels {
 			tags = append(tags, k+":"+v)
 		}
-		res = append(res, grafanasj.Annotation{
+		res = append(res, simplejson.Annotation{
 			Time:  t,
 			Text:  hits[i].Text,
 			Title: hits[i].Text,
@@ -209,6 +214,34 @@ func (idx *Indexer) GrafanaSearch(ctx context.Context, target string) ([]string,
 	lvs, _, err := idx.LabelValues(parts[0], time.Now().Add(-1*time.Hour), time.Now(), 100)
 	for i := range lvs {
 		res = append(res, parts[0]+"="+lvs[i])
+	}
+
+	return res, err
+}
+
+// GrafanaAdhocFilterTags implements the Grafana Simple JSON tags query
+func (idx *Indexer) GrafanaAdhocFilterTags(ctx context.Context) ([]simplejson.TagInfoer, error) {
+	res := []simplejson.TagInfoer{}
+
+	ls, err := idx.Labels(time.Now().Add(-1*time.Hour), time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, l := range ls {
+		res = append(res, simplejson.TagStringKey(l))
+	}
+
+	return res, err
+}
+
+// GrafanaAdhocFilterTagValues implements the Grafana Simple JSON tag values query
+func (idx *Indexer) GrafanaAdhocFilterTagValues(ctx context.Context, key string) ([]simplejson.TagValuer, error) {
+	res := []simplejson.TagValuer{}
+
+	lvs, _, err := idx.LabelValues(key, time.Now().Add(-1*time.Hour), time.Now(), 100)
+	for i := range lvs {
+		res = append(res, simplejson.TagStringValue(lvs[i]))
 	}
 
 	return res, err
