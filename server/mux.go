@@ -70,6 +70,11 @@ func HandleSwagger(mux *http.ServeMux) {
 
 func basicAuth(next http.Handler, user, password string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if user == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		reqUser, reqPass, _ := r.BasicAuth()
 
 		if user != reqUser || password != reqPass {

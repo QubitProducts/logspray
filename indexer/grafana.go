@@ -17,6 +17,7 @@ package indexer
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -24,12 +25,37 @@ import (
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/ql"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/pkg/errors"
 	simplejson "github.com/tcolgate/grafana-simple-json-go"
 )
 
+func adhocFilterToQuery(base string, afs []simplejson.QueryAdhocFilter) (string, error) {
+	terms := []string{base}
+
+	for _, af := range afs {
+		var op string
+		switch af.Operator {
+		case "=", "!=", "!~":
+			op = af.Operator
+		case "=~":
+			op = "~"
+		default:
+			return "", errors.New("unsupported operator")
+		}
+		terms = append(terms, fmt.Sprintf("%q %s %q", af.Key, op, af.Value))
+	}
+
+	return strings.Join(terms, " "), nil
+}
+
 // GrafanaQuery implements the Grafana Simple JSON Query request
 func (idx *Indexer) GrafanaQuery(ctx context.Context, target string, args simplejson.QueryArguments) ([]simplejson.DataPoint, error) {
-	matcher, err := ql.Compile(target)
+	query, err := adhocFilterToQuery(target, args.Filters)
+	if err != nil {
+		return nil, err
+	}
+
+	matcher, err := ql.Compile(query)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +95,12 @@ func (idx *Indexer) GrafanaQuery(ctx context.Context, target string, args simple
 
 // GrafanaQueryTable implements the Grafana Simple JSON Query request for tables
 func (idx *Indexer) GrafanaQueryTable(ctx context.Context, target string, args simplejson.TableQueryArguments) ([]simplejson.TableColumn, error) {
-	matcher, err := ql.Compile(target)
+	query, err := adhocFilterToQuery(target, args.Filters)
+	if err != nil {
+		return nil, err
+	}
+
+	matcher, err := ql.Compile(query)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +185,11 @@ func (idx *Indexer) GrafanaQueryTable(ctx context.Context, target string, args s
 
 // GrafanaAnnotations implements the grafana Simple JSON Annotations request
 func (idx *Indexer) GrafanaAnnotations(ctx context.Context, query string, args simplejson.AnnotationsArguments) ([]simplejson.Annotation, error) {
+	query, err := adhocFilterToQuery(query, args.Filters)
+	if err != nil {
+		return nil, err
+	}
+
 	matcher, err := ql.Compile(query)
 	if err != nil {
 		return nil, err
