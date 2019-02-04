@@ -21,7 +21,7 @@ require (
 	github.com/graymeta/stow v0.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.5.0
+	github.com/grpc-ecosystem/grpc-gateway v1.7.0
 	github.com/hpcloud/tail v1.0.0
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect

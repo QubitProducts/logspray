@@ -1,0 +1,461 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "proto/logspray/log.proto",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/labels/{from.seconds}/{to.seconds}": {
+      "get": {
+        "summary": "Labels returns the set of labels known in the current index\nactive index.",
+        "operationId": "Labels",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/logsprayLabelsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "from.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "to.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    },
+    "/v1/labels/{from.seconds}/{to.seconds}/{name}": {
+      "get": {
+        "summary": "LabelsValue returns the set of values for a label  known in the current\nindex active index. (from/to are currently ignored)",
+        "operationId": "LabelValues",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/logsprayLabelValuesResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "from.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "to.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    },
+    "/v1/log": {
+      "post": {
+        "summary": "Log logs an individual message.",
+        "operationId": "Log",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/logsprayLogSummary"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/logsprayMessage"
+            }
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    },
+    "/v1/log/stream": {
+      "post": {
+        "summary": "LogStream ingests the stream of messages\nThe first message sent in a stream should set\nan initial set of default labels. You must provide a UUID\nfor the stream, and each message should include an incrementing\nindex into that stream.\n  The client assign the UUID, and Index, rather than the server,\nmaking it the singe source of truth for a given log item, and allowing\npotential deduplication of log itmes later on.",
+        "operationId": "LogStream",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/logsprayLogSummary"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "(streaming inputs)",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/logsprayMessage"
+            }
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    },
+    "/v1/search/{from.seconds}/{to.seconds}/{query}": {
+      "get": {
+        "summary": "Search takes a string query",
+        "operationId": "Search",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/logspraySearchResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "from.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "to.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "query",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "reverse",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    },
+    "/v1/search/{from.seconds}/{to.seconds}/{query}/stream": {
+      "get": {
+        "summary": "SearchStream takes a string query and returns results as a stream.",
+        "operationId": "SearchStream",
+        "responses": {
+          "200": {
+            "description": "(streaming responses)",
+            "schema": {
+              "$ref": "#/definitions/logsprayMessage"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "from.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "to.seconds",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "query",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "reverse",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    },
+    "/v1/tail/stream": {
+      "get": {
+        "summary": "Tail returns a stream of log data that matches the\nquery in the TailRequest. When reading the stream \nclients should pay attention to ControlMessage_SETHEADER\nevents which include the base sets of labels for a stream.\nThese labels should be added to log entries associated with\nthat stream.",
+        "operationId": "Tail",
+        "responses": {
+          "200": {
+            "description": "(streaming responses)",
+            "schema": {
+              "$ref": "#/definitions/logsprayMessage"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "max",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "LogService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "MessageControlMessage": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "OK",
+        "ERROR",
+        "SETHEADER",
+        "STREAMEND"
+      ],
+      "default": "NONE"
+    },
+    "logsprayLabelValuesResponse": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total_hit_count": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "title": "LabelValuesResponse"
+    },
+    "logsprayLabelsResponse": {
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "LabelsResponse"
+    },
+    "logsprayLogSummary": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "title": "LogSummary"
+    },
+    "logsprayMessage": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "setheader": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "text": {
+          "type": "string"
+        },
+        "control_message": {
+          "$ref": "#/definitions/MessageControlMessage"
+        },
+        "StreamID": {
+          "type": "string"
+        },
+        "Index": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "title": "Message"
+    },
+    "logspraySearchResponse": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/logsprayMessage"
+          }
+        },
+        "total_hit_count": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "title": "SearchResponse"
+    }
+  }
+}
