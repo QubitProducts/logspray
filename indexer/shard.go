@@ -53,7 +53,7 @@ func newShard(startTime time.Time, baseDir, indexId string) (*Shard, error) {
 	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
 
 	return &Shard{
-		dataDir:    baseDir,
+		dataDir:    filepath.Join(baseDir, id),
 		indexId:    indexId,
 		id:         id,
 		shardStart: startTime,
@@ -79,8 +79,7 @@ func (s *Shard) writeMessage(ctx context.Context, m *logspray.Message, labels ma
 		} else {
 			uidStr = base64.StdEncoding.EncodeToString([]byte(m.StreamID))
 		}
-		dir := filepath.Join(s.dataDir, s.id)
-		pbfn := filepath.Join(dir, fmt.Sprintf("%s.pb.log", uidStr))
+		pbfn := filepath.Join(s.dataDir, fmt.Sprintf("%s.pb.log", uidStr))
 
 		pbf = &ShardFile{
 			fn:     pbfn,

@@ -83,7 +83,7 @@ func NewArchive(opts ...ArchiveOpt) (*shardArchive, error) {
 			return filepath.SkipDir
 		}
 
-		t := time.Unix(0, int64(uint64(time.Millisecond)*uid.Time()))
+		t := ulid.Time(uid.Time())
 		shards = append(shards, &Shard{
 			id:         uid.String(),
 			shardStart: t,
@@ -206,7 +206,7 @@ func (sa *shardArchive) prune() {
 	defer sa.Unlock()
 
 	pivotTime := time.Now().Add(-1 * (sa.retention))
-	glog.V(2).Infof("Starting archive prune for shards more than %s old (before %s)", sa.retention, pivotTime)
+	glog.V(1).Infof("Starting archive prune for shards more than %s old (before %s)", sa.retention, pivotTime)
 	pivot := 0
 	for i := range sa.historyOrder {
 		if sa.historyOrder[i].After(pivotTime) {
@@ -231,7 +231,7 @@ func (sa *shardArchive) prune() {
 func (sa *shardArchive) pruneShards(ss []*Shard) {
 	glog.V(1).Infof("Deleteing %v shards", len(ss))
 	for _, s := range ss {
-		glog.V(1).Infof("Deleteing shard %v", s.id)
+		glog.V(1).Infof("Deleteing shard %v (%s)", s.id, s.dataDir)
 		_ = os.RemoveAll(s.dataDir)
 		glog.V(1).Infof("Done deleteing shard %v", s.id)
 	}
