@@ -115,6 +115,10 @@ func (r *MessageWriter) WriteMessage(ctx context.Context, m *logspray.Message) e
 
 // Close closes the remote stream.
 func (r *MessageWriter) Close() error {
+	if r.strc == nil {
+		return nil
+	}
+
 	_, err := r.strc.CloseAndRecv()
 	return err
 }
