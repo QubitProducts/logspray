@@ -377,6 +377,7 @@ func (w *Watcher) dockerDecorator(id string, envWhitelist []*regexp.Regexp) (log
 	for _, rx := range envWhitelist {
 		for k, vs := range vars {
 			if !rx.MatchString(k) {
+				glog.V(2).Infof("skipped env var label for %q", k)
 				continue
 			}
 			if len(vs) != 1 {
@@ -384,7 +385,9 @@ func (w *Watcher) dockerDecorator(id string, envWhitelist []*regexp.Regexp) (log
 					glog.Infof("picking first item from environment variable %s with %d values", k, len(vars[k]))
 				}
 			}
-			msg.Labels[fmt.Sprintf("container_env_%s", strings.ToLower(k))] = vs[0]
+			name := fmt.Sprintf("container_env_%s", strings.ToLower(k))
+			msg.Labels[name] = vs[0]
+			glog.V(2).Infof("env var label %q: %q", name, vs[0])
 		}
 	}
 
