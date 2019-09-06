@@ -7,12 +7,13 @@ require (
 	github.com/aokoli/goutils v1.0.1 // indirect
 	github.com/aws/aws-sdk-go v1.15.40
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
+	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cloudflare/backoff v0.0.0-20161212185259-647f3cdfc87a
-	github.com/cloudflare/cfssl v0.0.0-20180829183926-33259b0d2131
 	github.com/docker/distribution v2.6.2+incompatible // indirect
 	github.com/docker/engine-api v0.4.0
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.3.3 // indirect
+	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-logfmt/logfmt v0.3.0
 	github.com/gogo/protobuf v1.1.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
@@ -37,12 +38,14 @@ require (
 	github.com/prometheus/procfs v0.0.0-20180920065004-418d78d0b9a7 // indirect
 	github.com/rakyll/statik v0.1.5
 	github.com/rjeczalik/notify v0.9.1
+	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.2 // indirect
+	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
+	github.com/stretchr/testify v1.4.0 // indirect
 	github.com/tcolgate/grafana-simple-json-go v0.9.4
-	github.com/tcolgate/grafanasj v1.0.0 // indirect
-	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b
-	golang.org/x/net v0.0.0-20180921000356-2f5d2388922f
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/net v0.0.0-20190311183353-d8887717615a
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
@@ -50,5 +53,5 @@ require (
 	google.golang.org/grpc v1.15.0
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
-	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.2
 )
