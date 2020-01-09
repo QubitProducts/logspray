@@ -194,7 +194,8 @@ func (r *Rule) applyLogfmt(m *logspray.Message) bool {
 			m.Labels[string(d.Key())] = string(d.Value())
 		}
 	}
-	return d.Err() != nil
+
+	return d.Err() == nil
 }
 
 func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
@@ -209,6 +210,9 @@ func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
 	var jsonObj map[string]interface{}
 
 	err := json.Unmarshal(content, &jsonObj)
+	if err != nil {
+		return true
+	}
 
 	for k, v := range jsonObj {
 		switch v := v.(type) {
@@ -223,7 +227,7 @@ func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
 		}
 	}
 
-	return err != nil
+	return err == nil
 }
 
 func getFuncName(i interface{}) string {

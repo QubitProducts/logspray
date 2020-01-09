@@ -599,13 +599,13 @@ func TestLogfmt(t *testing.T) {
 			Rule: &Rule{
 				Action:      (*Rule).applyLogfmt,
 				SrcLabels:   []string{"text"},
-				Regex:       &JSONRegexp{regexp.MustCompile("(.+)")},
+				Regex:       &JSONRegexp{regexp.MustCompile("[^\t]+(.+)")},
 				Separator:   ";",
 				Replacement: "$1",
 			},
 			Message: &logspray.Message{
 				Labels: map[string]string{
-					"text": `hello=world other="some things"`,
+					"text": "ERROR | theres a message here\thello=world world=2 other=\"some things\"",
 				},
 			},
 			expect:          true,
