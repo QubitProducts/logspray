@@ -194,10 +194,7 @@ func (r *Rule) applyLogfmt(m *logspray.Message) bool {
 			m.Labels[string(d.Key())] = string(d.Value())
 		}
 	}
-	if d.Err() != nil {
-		return false
-	}
-	return true
+	return d.Err() != nil
 }
 
 func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
@@ -226,10 +223,7 @@ func (r *Rule) applyStructuredLogging(m *logspray.Message) bool {
 		}
 	}
 
-	if err != nil {
-		return false
-	}
-	return true
+	return err != nil
 }
 
 func getFuncName(i interface{}) string {
