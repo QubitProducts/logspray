@@ -38,7 +38,7 @@ type MessageWriter struct {
 }
 
 // WriteMessage writes a message to the stdout sink.
-func (o *MessageWriter) WriteMessage(m *logspray.Message) error {
+func (o *MessageWriter) WriteMessage(ctx context.Context, m *logspray.Message) error {
 	fmt.Printf("Msg: %#v\n", *m)
 	return nil
 }
