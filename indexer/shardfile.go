@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -30,7 +32,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/pkg/errors"
 )
 
 type readWriteAtCloser interface {
@@ -49,6 +50,99 @@ type ShardFile struct {
 	headersSent bool
 	labels      map[string]string
 	offset      int64 // This is the current end of the file
+}
+
+// ShardFileIterator retries messages from a shar file
+type ShardFileIterator struct {
+	file    *os.File
+	hdr     *logspray.Message
+	sentHdr bool
+	sr      *io.SectionReader
+	err     error
+	eof     int64
+	off     int64
+
+	next *logspray.Message
+}
+
+// Header
+func (sfi *ShardFileIterator) Header() *logspray.Message {
+	return sfi.hdr
+}
+
+// Next
+func (sfi *ShardFileIterator) Next() bool {
+	if sfi.err != nil {
+		return false
+	}
+
+	if !sfi.sentHdr {
+		sfi.next = sfi.hdr
+		sfi.sentHdr = true
+		return true
+	}
+
+	sfi.off, _ = sfi.sr.Seek(0, io.SeekCurrent)
+	sfi.next, sfi.err = readMessageFromFile(sfi.sr)
+	if sfi.err != nil {
+		return false
+	}
+
+	return true
+}
+
+// Offset returns the current offset from the start of the file
+func (sfi *ShardFileIterator) Offset() int64 {
+	return sfi.off
+}
+
+// Err returns any error
+func (sfi *ShardFileIterator) Err() error {
+	if errors.Is(sfi.err, io.EOF) {
+		return nil
+	}
+	return sfi.err
+}
+
+// Close
+func (sfi *ShardFileIterator) Close() error {
+	return sfi.file.Close()
+}
+
+// Message()
+func (sfi *ShardFileIterator) Message() *logspray.Message {
+	return sfi.next
+}
+
+// OpenShardFileIterator opens a file
+func OpenShardFileIterator(fn string) (*ShardFileIterator, error) {
+	file, err := os.Open(fn)
+	if err != nil {
+		return nil, err
+	}
+
+	eof, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, err
+	}
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	sr := io.NewSectionReader(file, 0, eof)
+
+	hdr, err := readMessageFromFile(sr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file header %s, %w", fn, err)
+	}
+
+	return &ShardFileIterator{
+		file: file,
+		sr:   sr,
+		hdr:  hdr,
+		eof:  eof,
+	}, nil
 }
 
 // Search searches the shard file for messages in the provided time range,
@@ -88,7 +182,7 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 
 	hdr, err := readMessageFromFile(sr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to read file header %s", s.fn)
+		return fmt.Errorf("failed to read file header %s, %w", s.fn, err)
 	}
 	err = msgFunc(hdr)
 	if err != nil {
@@ -120,7 +214,7 @@ func (s *ShardFile) Search(ctx context.Context, msgFunc logspray.MessageFunc, ma
 				return nil
 			}
 			if err != nil {
-				return errors.Wrapf(err, "failed to read message from %s", s.fn)
+				return fmt.Errorf("failed to read message from %s, %w", s.fn, err)
 			}
 
 			if nmsg.Time == nil {
@@ -163,7 +257,7 @@ func (s *ShardFile) writeMessageToFile(ctx context.Context, m *logspray.Message)
 		}
 		sz, err := writePBMessageToFile(newWriter, 0, hm)
 		if err != nil {
-			return errors.Wrapf(err, "failed writing file header")
+			return fmt.Errorf("failed writing file header, %w", err)
 		}
 		s.file = newWriter
 		s.offset = int64(sz)
@@ -171,7 +265,7 @@ func (s *ShardFile) writeMessageToFile(ctx context.Context, m *logspray.Message)
 
 	sz, err := writePBMessageToFile(s.file, s.offset, m)
 	if err != nil {
-		return errors.Wrapf(err, "failed writing to %s", s.fn)
+		return fmt.Errorf("failed writing to %s, %w", s.fn, err)
 	}
 	s.offset += int64(sz)
 
@@ -184,13 +278,13 @@ func writePBMessageToFile(w io.WriterAt, offset int64, msg *logspray.Message) (u
 	}
 	bs, err := proto.Marshal(msg)
 	if err != nil {
-		return 0, errors.Wrap(err, "marshal protobuf failed")
+		return 0, fmt.Errorf("marshal protobuf failed, %w", err)
 	}
 
 	// We use a uin16 for the size field, we'll drop anything that's
 	// too big here.
 	if len(bs) > 65535 {
-		return 0, errors.Errorf("marshaled protobuf is %d bytes too large", len(bs)-65535)
+		return 0, fmt.Errorf("marshaled protobuf is %d bytes too large", len(bs)-65535)
 	}
 
 	buf := bytes.NewBuffer([]byte{})
@@ -200,7 +294,7 @@ func writePBMessageToFile(w io.WriterAt, offset int64, msg *logspray.Message) (u
 
 	n, err := w.WriteAt(buf.Bytes(), offset)
 	if n != len(buf.Bytes()) || err != nil {
-		return 0, errors.Wrap(err, "write pb to file failed")
+		return 0, fmt.Errorf("write pb to file failed, %w", err)
 	}
 
 	return uint32(n), nil
@@ -214,16 +308,16 @@ func readMessageFromFile(r *io.SectionReader) (*logspray.Message, error) {
 		return nil, err
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed read message size header")
+		return nil, fmt.Errorf("failed read message size header, %w", err)
 	}
 	if n != len(szbs) {
-		return nil, errors.New("short read for message size header")
+		return nil, fmt.Errorf("short read for message size header")
 	}
 
 	szbytes := uint16(0)
 	err = binary.Read(szbuf, binary.LittleEndian, &szbytes)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode message size")
+		return nil, fmt.Errorf("failed to decode message size, %w", err)
 	}
 
 	// We read the protobuf, and the trailing size bytes.
@@ -233,27 +327,27 @@ func readMessageFromFile(r *io.SectionReader) (*logspray.Message, error) {
 		return nil, err
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed read message")
+		return nil, fmt.Errorf("failed read message, %2", err)
 	}
 	if n != len(pbbs) {
-		return nil, errors.New("short read for message")
+		return nil, fmt.Errorf("short read for message")
 	}
 
 	trailSzbytes := uint16(0)
 	szbuf = bytes.NewBuffer(pbbs[len(pbbs)-2:])
 	err = binary.Read(szbuf, binary.LittleEndian, &trailSzbytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed reading trail size")
+		return nil, fmt.Errorf("failed reading trail size, %w", err)
 	}
 
 	if szbytes != trailSzbytes {
-		return nil, errors.Wrap(err, "header and trail size mismatch")
+		return nil, fmt.Errorf("header and trail size mismatch, %w", err)
 	}
 
 	msg := logspray.Message{}
 	err = proto.Unmarshal(pbbs[:len(pbbs)-2], &msg)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to umarshal log message proto")
+		return nil, fmt.Errorf("failed to umarshal log message proto, %w", err)
 	}
 
 	return &msg, nil
@@ -268,7 +362,7 @@ func readMessageFromFileEnd(r *io.SectionReader) (*logspray.Message, error) {
 
 	_, err := r.Seek(-2, io.SeekCurrent)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not seek back to message trailer")
+		return nil, fmt.Errorf("could not seek back to message trailer, %w", err)
 	}
 
 	szbs := make([]byte, 2)
@@ -278,7 +372,7 @@ func readMessageFromFileEnd(r *io.SectionReader) (*logspray.Message, error) {
 		return nil, err
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed read message size trailer")
+		return nil, fmt.Errorf("failed read message size trailer, %w", err)
 	}
 	if n != len(szbs) {
 		return nil, errors.New("short read for message size trailer")
@@ -287,17 +381,17 @@ func readMessageFromFileEnd(r *io.SectionReader) (*logspray.Message, error) {
 	szbytes := uint16(0)
 	err = binary.Read(szbuf, binary.LittleEndian, &szbytes)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode message size trailer")
+		return nil, fmt.Errorf("failed to decode message size trailer, %w", err)
 	}
 
 	start, err := r.Seek(-1*int64(4+szbytes), io.SeekCurrent)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not seek back to message header")
+		return nil, fmt.Errorf("could not seek back to message header, %w", err)
 	}
 
 	msg, err := readMessageFromFile(r)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read message")
+		return nil, fmt.Errorf("failed to read message, %w", err)
 	}
 
 	_, err = r.Seek(start, io.SeekStart)

@@ -20,6 +20,7 @@ import (
 
 	_ "github.com/QubitProducts/logspray/cmd/logs/client"
 	_ "github.com/QubitProducts/logspray/cmd/logs/completion"
+	_ "github.com/QubitProducts/logspray/cmd/logs/dumpbucket"
 	_ "github.com/QubitProducts/logspray/cmd/logs/reader"
 	"github.com/QubitProducts/logspray/cmd/logs/root"
 	_ "github.com/QubitProducts/logspray/cmd/logs/server"
