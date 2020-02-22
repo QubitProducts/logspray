@@ -327,7 +327,7 @@ func readMessageFromFile(r *io.SectionReader) (*logspray.Message, error) {
 		return nil, err
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed read message, %2", err)
+		return nil, fmt.Errorf("failed read message, %w", err)
 	}
 	if n != len(pbbs) {
 		return nil, fmt.Errorf("short read for message")

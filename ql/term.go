@@ -20,8 +20,6 @@ import (
 	"io"
 	"regexp"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type queryTerm struct {
@@ -146,7 +144,7 @@ func (lv *matchOp) match(rv string) bool {
 func buildOpMatch(lv string) (op, error) {
 	re, err := regexp.Compile(lv)
 	if err != nil {
-		return nil, errors.Wrap(err, "build regexp match failed")
+		return nil, fmt.Errorf("build regexp match failed, %w", err)
 	}
 
 	return (*matchOp)(re), nil
@@ -163,7 +161,7 @@ func (lv *matchNeOp) match(rv string) bool {
 func buildOpNotMatch(lv string) (op, error) {
 	re, err := regexp.Compile(lv)
 	if err != nil {
-		return nil, errors.Wrap(err, "build regexp match failed")
+		return nil, fmt.Errorf("build regexp match failed, %w", err)
 	}
 
 	return (*matchNeOp)(re), nil

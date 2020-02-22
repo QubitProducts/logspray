@@ -17,6 +17,7 @@ package reader
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -48,7 +49,7 @@ func newSRVNameservice(nss []string) (*srvNameservice, error) {
 	for _, ns := range nss {
 		_, _, err := net.SplitHostPort(ns)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse nameserver address, should be host:port")
+			return nil, fmt.Errorf("cannot parse nameserver address, %w", err)
 		}
 	}
 

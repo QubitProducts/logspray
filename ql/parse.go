@@ -15,8 +15,6 @@ package ql
 
 import (
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // Parser stores the state for the ivy parser.
@@ -57,7 +55,7 @@ func (p *Parser) next() (Token, error) {
 		tok = p.scanner.Next()
 	}
 	if tok.Type == TokError {
-		return tok, errors.Wrap(tok, "error parsing query")
+		return tok, fmt.Errorf("error parsing query, %w", tok)
 	}
 	p.curTok = tok
 	if tok.Type != Newline {

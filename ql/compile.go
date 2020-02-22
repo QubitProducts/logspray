@@ -15,9 +15,9 @@ package ql
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
-	"github.com/pkg/errors"
 )
 
 // MatchFunc describes a function that can be used to
@@ -82,7 +82,7 @@ func Compile(qstr string) (MatchFunc, error) {
 
 	qts, err := p.readQueryTerms()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed ot read query")
+		return nil, fmt.Errorf("failed ot read query, %w", err)
 	}
 
 	terms := []MatchFunc{}

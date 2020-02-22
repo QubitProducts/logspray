@@ -41,7 +41,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/golang/glog"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -281,7 +280,7 @@ func (cc *certCache) getKeys() (map[string]*rsa.PublicKey, error) {
 
 	r, err := http.Get(cc.u)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't fetch jws keys")
+		return nil, fmt.Errorf("can't fetch jws keys, %w", err)
 	}
 
 	if r.StatusCode != 200 {

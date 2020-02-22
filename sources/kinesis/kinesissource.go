@@ -20,6 +20,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/QubitProducts/logspray/proto/logspray"
 	"github.com/QubitProducts/logspray/sources"
@@ -85,7 +86,7 @@ func (w *Watcher) shardIterator(ctx context.Context, shardId string, fromStart b
 		StreamName:        aws.String(w.stream),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get shard iterator")
+		return nil, fmt.Errorf("could not get shard iterator, %w", err)
 	}
 
 	return resp.ShardIterator, ctx.Err()

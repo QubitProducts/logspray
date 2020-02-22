@@ -356,7 +356,7 @@ func (w *Watcher) dockerDecorator(id string, envWhitelist []*regexp.Regexp) (log
 
 	vars, err := w.getContainerMetadata(id)
 	if err != nil {
-		return logspray.Message{}, errors.Wrapf(err, "could no get container metadata for %v", id)
+		return logspray.Message{}, fmt.Errorf("could no get container metadata for %v, %w", id, err)
 	}
 
 	if v, ok := vars["id"]; ok {

@@ -17,12 +17,12 @@ package kinesis
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/QubitProducts/logspray/sources"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/pkg/errors"
 )
 
 // Watcher watches for shards being added
@@ -76,7 +76,7 @@ func (w *Watcher) initialize() error {
 		Region: w.region,
 	})
 	if err != nil {
-		return errors.Wrap(err, "could not create AWS session")
+		return fmt.Errorf("could not create AWS session, %w", err)
 	}
 
 	w.kinesis = kinesis.New(awsSession)
@@ -89,7 +89,7 @@ func (w *Watcher) getShardIds() ([]string, error) {
 		StreamName: aws.String(w.stream),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not list Kinesis streams")
+		return nil, fmt.Errorf("could not list Kinesis streams, %w", err)
 	}
 
 	shardIds := make([]string, len(resp.StreamDescription.Shards))
