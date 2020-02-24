@@ -6,6 +6,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.11 // indirect
 	github.com/aokoli/goutils v1.0.1 // indirect
 	github.com/aws/aws-sdk-go v1.15.40
+	github.com/benhoyt/goawk v1.6.0
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cloudflare/backoff v0.0.0-20161212185259-647f3cdfc87a
