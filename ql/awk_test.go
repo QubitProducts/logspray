@@ -5,7 +5,7 @@ import "testing"
 func TestNewAwkQuery(t *testing.T) {
 	aw, err := NewAWKQuery(`
   BEGIN {count = 0}
-	// {count++; setLabel("count", count); print $1}
+	// {count++; setLabel("count", count); print $0}
 	`, " ")
 	if err != nil {
 		t.Fatalf("err: %v", err)

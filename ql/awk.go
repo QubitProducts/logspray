@@ -11,6 +11,7 @@ import (
 	"github.com/benhoyt/goawk/interp"
 	"github.com/benhoyt/goawk/parser"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
 type AWKQuery struct {
@@ -37,8 +38,6 @@ func (ar *AWKQuery) Read(p []byte) (n int, err error) {
 		return 0, ar.err
 	}
 
-	log.Printf("len: %d", len(p))
-
 	// switch labels here
 	if ar.currOff == 0 {
 		// read the next line
@@ -52,7 +51,6 @@ func (ar *AWKQuery) Read(p []byte) (n int, err error) {
 
 	copy(p, ar.strbuf[ar.currOff:end])
 	sent := end - ar.currOff
-	log.Printf("sent %d", sent)
 
 	// we've sent all the data
 	if end == len(ar.strbuf) {
@@ -63,9 +61,17 @@ func (ar *AWKQuery) Read(p []byte) (n int, err error) {
 }
 
 func (ar *AWKQuery) Write(p []byte) (n int, err error) {
-	log.Printf("%s", p)
+	if "\n" == string(p) {
+		return len(p), nil
+	}
+	var t *timestamp.Timestamp
+	if ar.next != nil && ar.next.Time != nil {
+		t = ar.next.Time
+	} else {
+		t = ptypes.TimestampNow()
+	}
 	ar.out <- &logspray.Message{
-		Time:   ptypes.TimestampNow(),
+		Time:   t,
 		Text:   string(p),
 		Labels: ar.labels}
 	return len(p), nil
