@@ -1,3 +1,5 @@
+# THIS PRODUCT IS NO LONGER IN USE OR SUPPORTED.
+
 # LogSpray
 
 This is a gRPC service, and clients, for distributing and
